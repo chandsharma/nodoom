@@ -8,6 +8,8 @@ final class UserSettings {
     private static final String KEY_UNLOCK_ALERT = "unlock_alert";
     private static final String KEY_COUNTDOWN_STATUS = "countdown_status";
     private static final String KEY_COMPATIBILITY_ALERT = "compatibility_alert";
+    private static final String KEY_PROTECTION_STATUS = "protection_status";
+    private static final String KEY_BLOCKED_SWIPE_HINT = "blocked_swipe_hint";
 
     private final SharedPreferences preferences;
 
@@ -38,5 +40,21 @@ final class UserSettings {
 
     void setCompatibilityAlertEnabled(boolean enabled) {
         preferences.edit().putBoolean(KEY_COMPATIBILITY_ALERT, enabled).apply();
+    }
+
+    boolean protectionStatusEnabled() {
+        return preferences.getBoolean(KEY_PROTECTION_STATUS, false);
+    }
+
+    void setProtectionStatusEnabled(boolean enabled) {
+        preferences.edit().putBoolean(KEY_PROTECTION_STATUS, enabled).apply();
+    }
+
+    boolean blockedSwipeHintEnabled() {
+        return preferences.getBoolean(KEY_BLOCKED_SWIPE_HINT, false);
+    }
+
+    void setBlockedSwipeHintEnabled(boolean enabled) {
+        preferences.edit().putBoolean(KEY_BLOCKED_SWIPE_HINT, enabled).apply();
     }
 }

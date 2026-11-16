@@ -1,5 +1,6 @@
 package com.chandsharma.nodoom;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.SystemClock;
@@ -85,7 +86,9 @@ final class RemovalStateStore {
         return get().mode == Mode.READY;
     }
 
+    @SuppressLint("ApplySharedPref")
     private Snapshot write(Mode mode, long deadline) {
+        // Removal-barrier state must be durable before the UI presents the next action.
         preferences.edit()
                 .putString(KEY_MODE, mode.name())
                 .putLong(KEY_DEADLINE, deadline)

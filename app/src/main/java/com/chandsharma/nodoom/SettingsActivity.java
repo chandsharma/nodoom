@@ -88,6 +88,8 @@ public final class SettingsActivity extends Activity {
 
         renderNotificationSettings();
         spacer(14);
+        renderInstagramFeedback();
+        spacer(14);
         renderBehaviourSummary();
         spacer(14);
         renderRemovalSettings();
@@ -104,9 +106,9 @@ public final class SettingsActivity extends Activity {
     private void renderNotificationSettings() {
         LinearLayout card = card();
         card.addView(kicker("NOTIFICATIONS", getColor(R.color.protected_state)));
-        card.addView(heading("Only timer alerts"));
+        card.addView(heading("All alerts are optional"));
         card.addView(body(
-                "There is no permanent “No Doom is protecting you” notification. All switches below affect only No Doom alerts."));
+                "Routine protection stays quiet by default. Turn on only the Android notifications you want."));
 
         boolean permission = checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                 == PackageManager.PERMISSION_GRANTED;
@@ -120,6 +122,14 @@ public final class SettingsActivity extends Activity {
             card.addView(allow);
         }
 
+        card.addView(toggle(
+                "Always-on protection status",
+                "Optional silent notification while No Doom is on.",
+                userSettings.protectionStatusEnabled(),
+                enabled -> {
+                    userSettings.setProtectionStatusEnabled(enabled);
+                    notifications.syncStateNotification(new ProtectionStateStore(this).get());
+                }));
         card.addView(toggle(
                 "Unlock-window alert",
                 "Alert once after the 60-minute wait ends.",
@@ -153,6 +163,20 @@ public final class SettingsActivity extends Activity {
         content.addView(card);
     }
 
+    private void renderInstagramFeedback() {
+        LinearLayout card = card();
+        card.addView(kicker("INSTAGRAM FEEDBACK", getColor(R.color.protected_state)));
+        card.addView(heading("Silent by default"));
+        card.addView(body(
+                "A blocked next-Reel swipe normally leaves the current Reel in place without a popup."));
+        card.addView(toggle(
+                "Blocked-swipe hint",
+                "Optional short toast, limited to at most once every 30 seconds.",
+                userSettings.blockedSwipeHintEnabled(),
+                userSettings::setBlockedSwipeHintEnabled));
+        content.addView(card);
+    }
+
     private void renderBehaviourSummary() {
         LinearLayout card = card();
         card.addView(kicker("INSTAGRAM", getColor(R.color.protected_state)));
@@ -163,7 +187,10 @@ public final class SettingsActivity extends Activity {
                 "Vertical next-Reel swipes are blocked"));
         card.addView(statusLine("Reels tab", true,
                 "The first Reel can play; the next one cannot"));
-        card.addView(note("No toast, banner or notification appears when a swipe is blocked."));
+        card.addView(statusLine("Notification shade and Android UI", true,
+                "Always receive their own gestures"));
+        card.addView(note(
+                "No toast, banner or notification appears when a swipe is blocked unless you enable feedback above."));
         content.addView(card);
     }
 

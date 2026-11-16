@@ -24,24 +24,28 @@ final class InstagramUiClassifier {
         REELS_TAB,
         REEL_VIEWER,
         REEL_MODAL,
+        ORDINARY,
         OTHER
+    }
+
+    enum NavigationTarget {
+        REELS,
+        OTHER,
+        NONE
     }
 
     static final class Result {
         final Screen screen;
-        final AccessibilityNodeInfo homeNode;
-        final Rect fallbackHomeBounds;
+        final boolean strongViewerSignature;
+        final boolean otherNavigationSelected;
 
-        Result(Screen screen, AccessibilityNodeInfo homeNode, Rect fallbackHomeBounds) {
+        Result(
+                Screen screen,
+                boolean strongViewerSignature,
+                boolean otherNavigationSelected) {
             this.screen = screen;
-            this.homeNode = homeNode;
-            this.fallbackHomeBounds = fallbackHomeBounds;
-        }
-
-        void recycle() {
-            if (homeNode != null) {
-                homeNode.recycle();
-            }
+            this.strongViewerSignature = strongViewerSignature;
+            this.otherNavigationSelected = otherNavigationSelected;
         }
     }
 
@@ -51,42 +55,39 @@ final class InstagramUiClassifier {
     // labels while geometry remains the primary fallback.
     private static final Set<String> REELS_TOKENS = Set.of(
             "reels", "reel", "릴스", "リール", "reeles", "rolki", "ريلز", "ریلز");
-    private static final Set<String> HOME_TOKENS = Set.of(
-            "home", "inicio", "accueil", "startseite", "pagina iniziale", "início",
-            "होम", "होम पेज", "главная", "홈", "ホーム", "الرئيسية", "الصفحة الرئيسية");
+    private static final Set<String> OTHER_NAVIGATION_TOKENS = Set.of(
+            "home", "inicio", "accueil", "startseite", "início", "search", "explore",
+            "profile", "create", "messages", "notifications", "होम", "главная", "홈",
+            "ホーム", "الرئيسية");
     private static final Set<String> SELECTED_TOKENS = Set.of(
             "selected", "seleccionado", "sélectionné", "ausgewählt", "selezionato",
             "selecionado", "выбрано", "선택됨", "選択中", "محدد");
 
     Result classify(AccessibilityNodeInfo root, int screenWidth, int screenHeight) {
         if (root == null || screenWidth <= 0 || screenHeight <= 0) {
-            return new Result(Screen.OTHER, null, null);
+            return new Result(Screen.OTHER, false, false);
         }
 
         List<AccessibilityNodeInfo> nodes = collect(root);
         try {
             List<AccessibilityNodeInfo> bottomButtons = bottomNavigationButtons(
                     nodes, screenWidth, screenHeight);
-            AccessibilityNodeInfo home = findByTokens(bottomButtons, HOME_TOKENS);
             AccessibilityNodeInfo reels = findByTokens(bottomButtons, REELS_TOKENS);
-            Rect fallbackHome = leftmostBounds(bottomButtons);
             boolean reelsSelected = reels != null && isSelected(reels);
+            boolean otherNavigationSelected = hasOtherSelectedNavigation(bottomButtons, reels);
             boolean hasBottomNavigation = hasBottomNavigation(
                     bottomButtons, screenWidth, screenHeight);
             int railCount = verticalActionRailCount(nodes, screenWidth, screenHeight);
             boolean viewerSurface = hasFullscreenScrollSurface(nodes, screenWidth, screenHeight);
             boolean bottomSheet = hasForegroundBottomSheet(nodes, screenWidth, screenHeight);
+            boolean strongViewerSignature = railCount >= 3 && viewerSurface;
             Screen screen = decide(
                     reelsSelected,
                     hasBottomNavigation,
                     railCount,
                     viewerSurface,
                     bottomSheet);
-            if (screen == Screen.REELS_TAB) {
-                return new Result(screen, copy(home),
-                        fallbackHome == null ? null : new Rect(fallbackHome));
-            }
-            return new Result(screen, null, null);
+            return new Result(screen, strongViewerSignature, otherNavigationSelected);
         } finally {
             for (AccessibilityNodeInfo node : nodes) {
                 if (node != root) {
@@ -102,35 +103,36 @@ final class InstagramUiClassifier {
             int verticalRailCount,
             boolean hasViewerSurface,
             boolean hasBottomSheet) {
+        // A foreground comments/share sheet owns the gesture even when the Reels tab remains
+        // selected underneath it.
+        if (hasBottomSheet) {
+            return Screen.REEL_MODAL;
+        }
         if (reelsSelected) {
             return Screen.REELS_TAB;
         }
         // Home, Explore and profile screens keep their bottom navigation. Even an inline Reel can
         // expose a right-side action rail, so navigation presence wins over that weaker signal.
         if (hasBottomNavigation) {
-            return Screen.OTHER;
+            return Screen.ORDINARY;
         }
-        if (verticalRailCount < 3) {
-            return Screen.OTHER;
-        }
-        if (hasBottomSheet) {
-            return Screen.REEL_MODAL;
-        }
-        // Some Instagram builds do not expose their custom pager as scrollable. A full action rail
-        // without bottom navigation remains the fallback full-screen viewer signature.
-        return hasViewerSurface || verticalRailCount >= 3
+        // Require both independent signals. A temporarily incomplete Home tree can lose its bottom
+        // navigation for a frame; the service confirms this signature twice before gating.
+        return verticalRailCount >= 3 && hasViewerSurface
                 ? Screen.REEL_VIEWER
                 : Screen.OTHER;
     }
 
-    boolean isReelsNavigationNode(AccessibilityNodeInfo node, int screenHeight) {
+    NavigationTarget navigationTarget(AccessibilityNodeInfo node, int screenHeight) {
         if (node == null || screenHeight <= 0) {
-            return false;
+            return NavigationTarget.NONE;
         }
         Rect bounds = new Rect();
         node.getBoundsInScreen(bounds);
-        if (bounds.isEmpty() || bounds.centerY() < screenHeight * 0.72f) {
-            return false;
+        if (bounds.isEmpty()
+                || bounds.centerY() < screenHeight * 0.78f
+                || bounds.height() > screenHeight * 0.22f) {
+            return NavigationTarget.NONE;
         }
         String label = normalizedLabel(node);
         for (String token : REELS_TOKENS) {
@@ -138,10 +140,18 @@ final class InstagramUiClassifier {
                     || label.startsWith(token + " ")
                     || label.endsWith(" " + token)
                     || label.contains(" " + token + " ")) {
-                return true;
+                return NavigationTarget.REELS;
             }
         }
-        return false;
+        for (String token : OTHER_NAVIGATION_TOKENS) {
+            if (label.equals(token)
+                    || label.startsWith(token + " ")
+                    || label.endsWith(" " + token)
+                    || label.contains(" " + token + " ")) {
+                return NavigationTarget.OTHER;
+            }
+        }
+        return NavigationTarget.NONE;
     }
 
     private List<AccessibilityNodeInfo> collect(AccessibilityNodeInfo root) {
@@ -247,14 +257,15 @@ final class InstagramUiClassifier {
         return false;
     }
 
-    private Rect leftmostBounds(List<AccessibilityNodeInfo> bottomButtons) {
-        if (bottomButtons.isEmpty()) {
-            return null;
+    private boolean hasOtherSelectedNavigation(
+            List<AccessibilityNodeInfo> bottomButtons,
+            AccessibilityNodeInfo reels) {
+        for (AccessibilityNodeInfo button : bottomButtons) {
+            if (button != reels && isSelected(button)) {
+                return true;
+            }
         }
-        AccessibilityNodeInfo leftmost = bottomButtons.get(0);
-        Rect bounds = new Rect();
-        leftmost.getBoundsInScreen(bounds);
-        return bounds.isEmpty() ? null : bounds;
+        return false;
     }
 
     private int verticalActionRailCount(
@@ -310,7 +321,9 @@ final class InstagramUiClassifier {
             node.getBoundsInScreen(bounds);
             if (bounds.isEmpty()
                     || bounds.width() < width * 0.72f
-                    || bounds.height() < height * 0.56f) {
+                    || bounds.height() < height * 0.78f
+                    || bounds.top > height * 0.12f
+                    || bounds.bottom < height * 0.88f) {
                 continue;
             }
             String className = node.getClassName() == null
@@ -389,9 +402,4 @@ final class InstagramUiClassifier {
         return normalized;
     }
 
-    @SuppressWarnings("deprecation")
-    private AccessibilityNodeInfo copy(AccessibilityNodeInfo node) {
-        return node == null ? null : AccessibilityNodeInfo.obtain(node);
-    }
 }
-

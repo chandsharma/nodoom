@@ -2,6 +2,7 @@ package com.chandsharma.nodoom;
 
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
+import android.graphics.Insets;
 import android.graphics.Path;
 import android.graphics.PixelFormat;
 import android.graphics.PointF;
@@ -13,7 +14,9 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
+import android.view.WindowInsets;
 import android.view.WindowManager;
+import android.view.WindowMetrics;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,7 +61,6 @@ final class GestureGateOverlay {
             return;
         }
         targetBounds = new Rect(bounds);
-        updateLayoutBounds();
         show();
     }
 
@@ -67,7 +69,10 @@ final class GestureGateOverlay {
             if (forwarding || targetBounds == null || targetBounds.isEmpty()) {
                 return;
             }
-            updateLayoutBounds();
+            if (!updateLayoutBounds()) {
+                removeNow();
+                return;
+            }
             if (attached) {
                 try {
                     windowManager.updateViewLayout(gateView, layoutParams);
@@ -221,17 +226,31 @@ final class GestureGateOverlay {
         }
     }
 
-    private void updateLayoutBounds() {
+    private boolean updateLayoutBounds() {
         if (targetBounds == null) {
-            return;
+            return false;
         }
-        float density = service.getResources().getDisplayMetrics().density;
-        int edgeExclusion = 0;
-        int bottomExclusion = Math.round(30f * density);
-        layoutParams.x = targetBounds.left + edgeExclusion;
-        layoutParams.y = targetBounds.top;
-        layoutParams.width = Math.max(1, targetBounds.width() - edgeExclusion * 2);
-        layoutParams.height = Math.max(1, targetBounds.height() - bottomExclusion);
+        WindowMetrics metrics = windowManager.getCurrentWindowMetrics();
+        Rect displayBounds = metrics.getBounds();
+        Insets safeInsets = metrics.getWindowInsets().getInsetsIgnoringVisibility(
+                WindowInsets.Type.statusBars()
+                        | WindowInsets.Type.navigationBars()
+                        | WindowInsets.Type.displayCutout());
+
+        // The status-bar strip deliberately stays outside the overlay. A swipe that begins there
+        // belongs to Android's notification shade and must never be consumed by No Doom.
+        int left = Math.max(targetBounds.left, displayBounds.left + safeInsets.left);
+        int top = Math.max(targetBounds.top, displayBounds.top + safeInsets.top);
+        int right = Math.min(targetBounds.right, displayBounds.right - safeInsets.right);
+        int bottom = Math.min(targetBounds.bottom, displayBounds.bottom - safeInsets.bottom);
+        if (right <= left || bottom <= top) {
+            return false;
+        }
+        layoutParams.x = left;
+        layoutParams.y = top;
+        layoutParams.width = right - left;
+        layoutParams.height = bottom - top;
+        return true;
     }
 }
 

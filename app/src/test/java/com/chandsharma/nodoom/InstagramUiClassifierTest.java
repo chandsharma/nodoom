@@ -8,7 +8,7 @@ public final class InstagramUiClassifierTest {
     @Test
     public void inlineReelWithBottomNavigationStaysScrollable() {
         assertEquals(
-                InstagramUiClassifier.Screen.OTHER,
+                InstagramUiClassifier.Screen.ORDINARY,
                 InstagramUiClassifier.decide(false, true, 5, true, false));
     }
 
@@ -34,9 +34,23 @@ public final class InstagramUiClassifierTest {
     }
 
     @Test
+    public void foregroundSheetWinsOverSelectedReelsTab() {
+        assertEquals(
+                InstagramUiClassifier.Screen.REEL_MODAL,
+                InstagramUiClassifier.decide(true, true, 4, true, true));
+    }
+
+    @Test
     public void ordinaryFullScreenPageWithoutActionRailIsUntouched() {
         assertEquals(
                 InstagramUiClassifier.Screen.OTHER,
                 InstagramUiClassifier.decide(false, false, 2, true, false));
+    }
+
+    @Test
+    public void actionRailWithoutFullscreenPagerIsUntouched() {
+        assertEquals(
+                InstagramUiClassifier.Screen.OTHER,
+                InstagramUiClassifier.decide(false, false, 5, false, false));
     }
 }

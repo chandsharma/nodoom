@@ -4,7 +4,7 @@
 
 No Doom is a separate Android application. It never shares Instagram's UID, files, credentials or signing certificate. The official `com.instagram.android` package continues to perform all account and network activity.
 
-The manifest contains no Internet permission. Accessibility access is package-scoped to Instagram and a short allowlist of Android system packages used to protect No Doom's own settings.
+The manifest contains no Internet permission. Accessibility access is package-scoped to Instagram, Android System UI (only to release the overlay when the notification shade is in front), and a short allowlist used to protect No Doom's own removal settings.
 
 ## Components
 
@@ -15,9 +15,12 @@ The manifest contains no Internet permission. Accessibility access is package-sc
 | `ProtectionStateStore` | Fail-safe ON/OFF/countdown/window state using monotonic elapsed time |
 | `RemovalStateStore` | Ten-minute wait and ten-minute removal window using monotonic time |
 | `AlarmScheduler` | Two exact elapsed-time transitions; no polling or background ticking |
-| `NoDoomAccessibilityService` | Event router; acts only while protected |
+| `NoDoomAccessibilityService` | Generic window-safety and gesture-session coordinator; acts only while protected |
+| `ProtectedAppModule` / `ProtectedAppRegistry` | Stable extension boundary for app-specific modules |
+| `InstagramProtectionModule` | Maps Instagram recognition into generic protected surfaces |
 | `InstagramUiClassifier` | Centralised, version-maintainable screen recognition |
 | `GestureGateOverlay` | Transparent Accessibility overlay active only in a recognised Reel viewer |
+| `WindowSafetyPolicy` | Fail-closed foreground-package and System UI rule |
 | `SelfProtectionGuard` | Narrowly guards only uninstall/device-admin removal screens |
 | `RecognitionStore` | Stores timestamps and Instagram version only—never screen content |
 
@@ -30,16 +33,18 @@ The classifier combines:
 3. A large scroll surface or custom pager geometry.
 4. Bottom-navigation presence and selection state, preventing inline feed Reels from being mistaken for a full-screen viewer.
 5. Detection of foreground sheets so comments and share lists remain scrollable.
+6. Two consecutive observations for an unselected viewer, preventing a single incomplete Home tree from enabling the gate.
 
 No single username, caption, like count or private message is used. Language tokens are limited to bottom navigation and geometry remains the fallback. The M0 device pass must calibrate these signals against the current Instagram build.
 
 ## Gesture handling
 
-System Back/Home gesture edges are excluded from the touchable region. Within a confirmed Reel viewer:
+The status-bar and display-cutout strip is excluded from the touchable region. Android System UI events immediately remove the overlay, and the active foreground package is checked again before a forwarded gesture can restore it. Within a confirmed Reel viewer:
 
 - A clearly vertical movement is consumed.
 - A tap, hold or horizontal gesture is replayed through Android's accessibility gesture API.
 - The overlay disappears when comments or another foreground sheet is recognised.
+- Home, Explore and profile surfaces release the overlay immediately.
 
 Replaying a long press only after classification may not match Instagram's press timing perfectly. That is an explicit M0 go/no-go item; if it prevents R-03, the implementation must move to the documented bounce-back fallback before production.
 

@@ -8,7 +8,7 @@ No Doom is an open-source Android companion app that lets you watch one full-scr
 
 ### [⬇️ Download No Doom APK](https://github.com/chandsharma/nodoom/releases/latest/download/NoDoom.apk)
 
-**Current version:** `0.2.0-alpha.2` · **Requires:** Android 14 or newer
+**Current version:** `0.3.0-alpha.3` · **Requires:** Android 14 or newer
 
 [View release notes and checksums](https://github.com/chandsharma/nodoom/releases/latest) · [Changelog](CHANGELOG.md) · [Read the installation guide](docs/INSTALL.md)
 
@@ -21,7 +21,7 @@ This is an owner-signed alpha release for Pixel 9 Pro feasibility testing. Compl
 - A 60-minute cooling-off period plus a 10-minute confirmation window makes impulsive disabling harder.
 
 > [!IMPORTANT]
-> No Doom is a real daily-use app under active development, not a tutorial project. Version `0.1.0-alpha.1` failed its first Pixel test; `0.2.0-alpha.2` contains the resulting classifier, setup and noise fixes and awaits physical retesting. Do not rely on an alpha build until its in-app live check passes on your phone.
+> No Doom is a real daily-use app under active development, not a tutorial project. Versions `0.1.0-alpha.1` and `0.2.0-alpha.2` exposed physical-device gesture edge cases; `0.3.0-alpha.3` contains the System UI isolation and conservative viewer-recognition fixes and awaits physical retesting. Do not rely on an alpha build until its in-app live check passes on your phone.
 
 ## What it changes
 
@@ -31,9 +31,10 @@ This is an owner-signed alpha release for Pixel 9 Pro feasibility testing. Compl
 | A Reel you intentionally open | Plays normally; controls remain available |
 | Swipe to another Reel | Blocked |
 | Instagram Reels tab | Its first Reel can play; vertical swipes cannot advance |
+| Android notification shade and Quick Settings | Always pass through normally |
 | Other apps | Never touched |
 
-No Doom uses Android Accessibility to recognise a full-screen Reel and intercept only the vertical gesture that would advance it. The recognition rules live in one file, [`InstagramUiClassifier.java`](app/src/main/java/com/chandsharma/nodoom/InstagramUiClassifier.java), so Instagram compatibility can be repaired quickly after UI changes.
+No Doom uses Android Accessibility to recognise a full-screen Reel and intercept only the vertical gesture that would advance it. App-specific recognition is isolated behind [`ProtectedAppModule.java`](app/src/main/java/com/chandsharma/nodoom/ProtectedAppModule.java); Instagram's rules live in [`InstagramUiClassifier.java`](app/src/main/java/com/chandsharma/nodoom/InstagramUiClassifier.java). This keeps window safety independent and makes a future platform module possible without rewriting the core service.
 
 ## Safety and privacy
 

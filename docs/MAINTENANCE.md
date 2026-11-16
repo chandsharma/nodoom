@@ -1,6 +1,6 @@
 # Instagram compatibility maintenance
 
-Instagram changes frequently. Recognition logic is intentionally concentrated in `InstagramUiClassifier.java`.
+Instagram changes frequently. Recognition logic is intentionally concentrated in `InstagramProtectionModule.java` and `InstagramUiClassifier.java`; window safety stays generic in the service.
 
 ## After an Instagram update
 
@@ -30,5 +30,5 @@ The planned diagnostic export stores only:
 - Node class, view ID, bounds, click/scroll/selected booleans.
 - Stable hashes of labels if a label role must be compared.
 
-It must omit raw text and descriptions. Export is owner-initiated and stays local until manually shared. This feature is not enabled in `0.2.0-alpha.2` because its privacy review is not complete.
+It must omit raw text and descriptions. Export is owner-initiated and stays local until manually shared. This feature is not enabled in `0.3.0-alpha.3` because its privacy review is not complete.
 

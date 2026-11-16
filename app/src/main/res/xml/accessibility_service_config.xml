@@ -8,6 +8,6 @@
     android:description="@string/accessibility_description"
     android:isAccessibilityTool="false"
     android:notificationTimeout="40"
-    android:packageNames="com.instagram.android,com.android.settings,com.google.android.permissioncontroller"
+    android:packageNames="com.instagram.android,com.android.systemui,com.android.settings,com.google.android.permissioncontroller"
     android:settingsActivity="com.chandsharma.nodoom.MainActivity" />
 

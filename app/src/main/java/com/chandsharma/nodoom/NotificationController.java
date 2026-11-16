@@ -21,6 +21,7 @@ final class NotificationController {
     private static final int ID_MISSED = 203;
     private static final int LEGACY_ID_GUARD = 204;
     private static final int ID_COMPATIBILITY = 205;
+    private static final int ID_PROTECTION = 206;
 
     private final Context context;
     private final NotificationManager manager;
@@ -36,6 +37,7 @@ final class NotificationController {
     }
 
     void syncStateNotification(ProtectionSnapshot snapshot) {
+        syncProtectionStatus(snapshot);
         if (!canNotify()
                 || !settings.countdownStatusEnabled()
                 || snapshot.mode != ProtectionMode.COUNTDOWN) {
@@ -56,6 +58,26 @@ final class NotificationController {
                 .setCategory(Notification.CATEGORY_STATUS)
                 .build();
         manager.notify(ID_COUNTDOWN, notification);
+    }
+
+    private void syncProtectionStatus(ProtectionSnapshot snapshot) {
+        if (!canNotify()
+                || !settings.protectionStatusEnabled()
+                || !snapshot.mode.isProtected()) {
+            manager.cancel(ID_PROTECTION);
+            return;
+        }
+        Notification notification = new Notification.Builder(context, CHANNEL_STATUS)
+                .setSmallIcon(com.chandsharma.nodoom.R.drawable.ic_notification)
+                .setContentTitle("No Doom is on")
+                .setContentText("Instagram is limited to one full-screen Reel at a time.")
+                .setContentIntent(openAppIntent())
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .setShowWhen(false)
+                .setCategory(Notification.CATEGORY_STATUS)
+                .build();
+        manager.notify(ID_PROTECTION, notification);
     }
 
     void showUnlockWindow(ProtectionSnapshot snapshot) {
@@ -136,6 +158,9 @@ final class NotificationController {
         }
         if (!settings.compatibilityAlertEnabled()) {
             manager.cancel(ID_COMPATIBILITY);
+        }
+        if (!settings.protectionStatusEnabled()) {
+            manager.cancel(ID_PROTECTION);
         }
     }
 

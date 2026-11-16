@@ -42,11 +42,11 @@ For a sideloaded app, Pixel may initially block the Accessibility switch:
 4. Return to **Settings → Accessibility → Downloaded apps → No Doom**.
 5. Turn on **Use No Doom** and accept Android's disclosure.
 
-Accessibility is powerful. The open-source app has no Internet permission and is configured to inspect only Instagram and the system screens needed for self-protection.
+Accessibility is powerful. The open-source app has no Internet permission and is configured to inspect only Instagram, Android System UI to release the gesture layer for the notification shade, and the two system surfaces needed for the removal barrier.
 
 ### Notifications
 
-Allow notifications so the phone can announce the 10-minute unlock window. There is no permanent “running” or “protecting you” notification. **No Doom → Settings** controls the unlock alert, optional silent countdown status and optional Instagram-change warning.
+Allow notifications so the phone can announce the 10-minute unlock window. There is no permanent “running” or “protecting you” notification by default. **No Doom → Settings** controls the unlock alert, optional always-on status, optional silent countdown and optional Instagram-change warning. A separate blocked-swipe toast is also off by default and can be enabled there.
 
 ### Exact timer
 
@@ -62,7 +62,9 @@ Activate No Doom as a Device Administrator. No Doom requests no device-admin pol
 2. Open a Reel from Home, a profile or Explore. Try to swipe vertically five times. The starting Reel must remain.
 3. Leave the Reel and verify that Home/Explore/Profile still scroll normally.
 4. Tap Instagram's Reels tab. The first Reel may play, but five vertical swipes must leave that same Reel visible.
-5. Return to No Doom. Both recognition rows must show timestamps.
+5. While that Reel is open, pull down the Android notification shade and close it again. Both gestures must work normally.
+6. Return to Home and immediately scroll several posts in both directions. No gesture may be blocked.
+7. Return to No Doom. Both recognition rows must show timestamps.
 
 If either check fails, do not treat that build as protection. Record the Pixel's Android version and Instagram version in a compatibility issue without including private screen content.
 

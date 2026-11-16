@@ -2,6 +2,28 @@
 
 All notable user-facing changes are recorded here. Alpha releases remain subject to the physical-device acceptance report in [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md).
 
+## 0.3.0-alpha.3 — 2026-11-16
+
+### Changed
+
+- Made routine protection completely quiet by default, with optional settings for an always-on status notification and a rate-limited blocked-swipe hint.
+- Split app-specific recognition behind a `ProtectedAppModule` interface so future platforms can be added without changing the window-safety and gesture core.
+- Made the Reels-tab session survive transient Instagram accessibility-tree changes while still releasing immediately on ordinary navigation.
+
+### Fixed
+
+- Keeps the gesture overlay out of the Android status-bar strip so opening the notification shade always starts as a native System UI gesture.
+- Listens for Android System UI windows and immediately removes the Reel gate while the notification shade, Quick Settings or another System UI surface is in front.
+- Rechecks the active foreground package before restoring the gate after a forwarded tap.
+- Releases the gate immediately on a confirmed Home, Explore or profile surface instead of retaining it through an exit debounce.
+- Gives foreground comments and share sheets priority over the selected Reels tab so their lists remain native and scrollable.
+- Requires two consecutive observations and two independent geometry signals before an unselected full-screen viewer is gated, reducing intermittent Home-feed false positives.
+
+### Known limitations
+
+- Physical retesting on the owner's Pixel 9 Pro is required before this build can be considered reliable.
+- Accessibility-based recognition remains sensitive to Instagram UI changes; the in-app live check is mandatory after Instagram updates.
+
 ## 0.2.0-alpha.2 — 2026-11-16
 
 ### Changed

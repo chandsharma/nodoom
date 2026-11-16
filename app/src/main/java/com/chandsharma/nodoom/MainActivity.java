@@ -134,7 +134,7 @@ public final class MainActivity extends Activity {
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         Button settings = new Button(this);
-        settings.setText("Settings");
+        settings.setText(R.string.settings);
         settings.setTextSize(13);
         settings.setAllCaps(false);
         settings.setTextColor(color(com.chandsharma.nodoom.R.color.muted));
@@ -276,7 +276,7 @@ public final class MainActivity extends Activity {
                 accessibility ? "On" : "Recognises full-screen Reels");
         addHealthRow(accessCard, "2 · Notifications", notificationPermission,
                 notificationPermission
-                        ? "Allowed · routine protection alerts are off"
+                        ? "Allowed · every alert is controlled in Settings"
                         : "Only needed for the unlock-window alert");
         addHealthRow(accessCard, "3 · Exact timer", exactAlarms,
                 exactAlarms ? "Allowed" : "Opens the decision window on time");
@@ -310,7 +310,7 @@ public final class MainActivity extends Activity {
 
         if (deviceReady && !instagramVersion.equals("Not installed")) {
             testCard.addView(note(
-                    "Open a full-screen Reel and swipe vertically five times: it must stay on the same Reel. Then open the Reels tab and repeat. Home, profile grids and Explore must still scroll normally."));
+                    "Open a full-screen Reel and swipe vertically five times: it must stay on the same Reel. Pull down and close the notification shade, then return Home and scroll immediately. Android UI, Home, profile grids and Explore must remain completely normal."));
             Button openInstagram = primaryButton("Open Instagram for live check");
             openInstagram.setOnClickListener(view -> openInstagram());
             testCard.addView(openInstagram);
@@ -398,7 +398,7 @@ public final class MainActivity extends Activity {
         card.addView(kicker("ABOUT", color(com.chandsharma.nodoom.R.color.muted)));
         card.addView(heading("Private by construction"));
         card.addView(body(
-                "No Doom 0.2.0-alpha.2 works with the official Play Store Instagram app. It has no Internet permission, no analytics, no account and no root requirement."));
+                "No Doom 0.3.0-alpha.3 works with the official Play Store Instagram app. It has no Internet permission, no analytics, no account and no root requirement."));
         card.addView(note(
                 "Accessibility can see Instagram and the small set of Android system screens needed for self-protection. Nothing it sees is saved or transmitted."));
         content.addView(card);

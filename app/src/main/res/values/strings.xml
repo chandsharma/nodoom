@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">No Doom</string>
+    <string name="accessibility_description">Stops endless Reels in the official Instagram app and protects No Doom while it is on. Screen content is processed only on this phone and is never stored or sent anywhere.</string>
+    <string name="device_admin_description">Adds an extra barrier against impulsively uninstalling No Doom while protection is on. It does not control or erase the phone.</string>
+    <string name="reels_tab_off">Reels tab is off</string>
+</resources>
+

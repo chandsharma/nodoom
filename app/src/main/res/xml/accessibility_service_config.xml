@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged|typeWindowContentChanged|typeViewClicked|typeViewScrolled"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews"
+    android:canPerformGestures="true"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/accessibility_description"
+    android:notificationTimeout="40"
+    android:packageNames="com.instagram.android,com.android.settings,com.google.android.permissioncontroller,com.android.vending,com.google.android.apps.nexuslauncher,com.google.android.apps.wellbeing,com.google.android.settings.intelligence"
+    android:settingsActivity="com.chandsharma.nodoom.MainActivity" />
+

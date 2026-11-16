@@ -1,0 +1,45 @@
+name: Android checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests, lint and debug APK
+        run: ./gradlew --no-daemon test lint assembleDebug
+
+      - name: Confirm there is no Internet permission
+        run: |
+          if grep -R 'android.permission.INTERNET' app/src/main; then
+            echo 'Internet permission is forbidden.'
+            exit 1
+          fi
+
+      - name: Upload debug APK for pull-request testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: nodoom-debug-${{ github.sha }}
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 7
+

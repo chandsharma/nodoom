@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#FF161210</color>
+    <color name="surface">#FF241E1B</color>
+    <color name="ink">#FFFFF8F2</color>
+    <color name="muted">#FFC9BBB2</color>
+    <color name="accent">#FFFF756A</color>
+    <color name="protected_state">#FF65D1A4</color>
+    <color name="warning">#FFFFBD65</color>
+    <color name="divider">#FF3A312C</color>
+</resources>
+

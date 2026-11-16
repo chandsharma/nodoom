@@ -1,0 +1,30 @@
+name: Feature proposal
+description: Suggest a focused improvement that preserves the privacy and permission model.
+title: "[Proposal]: "
+labels: [enhancement, needs-discussion]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What daily-use problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+    validations:
+      required: true
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Required constraints
+      options:
+        - label: This does not require modifying Instagram, root or bootloader unlock.
+          required: true
+        - label: This does not add networking, analytics, ads or cloud accounts.
+          required: true
+        - label: This does not automate Instagram account actions.
+          required: true
+

@@ -1,0 +1,17 @@
+.gradle/
+.idea/
+local.properties
+*.iml
+build/
+**/build/
+.DS_Store
+
+# The owner's release key never belongs in the public repository.
+keystore/
+*.jks
+*.keystore
+signing.properties
+
+# Local diagnostics may contain device-specific UI structure.
+diagnostics/
+

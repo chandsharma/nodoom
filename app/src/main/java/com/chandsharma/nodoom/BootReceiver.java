@@ -1,0 +1,24 @@
+package com.chandsharma.nodoom;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+
+public final class BootReceiver extends BroadcastReceiver {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        String action = intent.getAction();
+        ProtectionStateStore store = new ProtectionStateStore(context);
+        ProtectionSnapshot state;
+        if (Intent.ACTION_BOOT_COMPLETED.equals(action)) {
+            state = store.resetProtectedStateAfterBoot();
+        } else if (Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) {
+            state = store.get();
+        } else {
+            return;
+        }
+        new AlarmScheduler(context).sync(state);
+        new NotificationController(context).syncStateNotification(state);
+    }
+}
+

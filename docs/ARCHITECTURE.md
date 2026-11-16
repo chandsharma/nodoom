@@ -31,7 +31,7 @@ The classifier combines:
 1. Foreground package identity.
 2. A vertical rail of small clickable controls on the right.
 3. A large scroll surface or custom pager geometry.
-4. Bottom-navigation presence and selection state, preventing inline feed Reels from being mistaken for a full-screen viewer.
+4. Exact Instagram bottom-tab IDs, bottom-screen geometry and descendant selection state, preventing inline Home Reels and nearby feed controls from being mistaken for a full-screen viewer.
 5. Exact visible markers for comments, sharing and the saved-collection sheet, plus conservative geometry for other scrollable sheets.
 6. Two consecutive observations for an unselected viewer, preventing a single incomplete Home tree from enabling the gate.
 
@@ -47,6 +47,7 @@ The status-bar and display-cutout strip is excluded from the touchable region. A
 - A vertical gesture inside a recognised comments, sharing or collection list is consumed and converted into a scroll action on that exact foreground list. Unknown sheets stay fail-closed and cannot pass a gesture to the Reel pager underneath.
 - While a foreground sheet is open, a short-lived modal watcher retains the protected Reel session and rearms ordinary viewer classification as soon as the sheet closes, including transitions where Instagram omits a close event.
 - Home, Explore and profile surfaces release the overlay immediately.
+- While a viewer is protected, a rate-limited check reads only the exact bottom-tab subtree. If Instagram returns to Home without a normal window event, this lightweight escape path removes the stale gate without scanning the large video tree.
 
 Because a long press is replayed after classification, its effect begins after the finger is released rather than during the original hold. Instagram's edge-hold 2× playback interaction is functional on the tested build, but this timing difference and multi-touch remain explicit alpha limitations. If either prevents R-03 in daily use, the implementation must move to the documented bounce-back fallback before a stable release.
 

@@ -57,6 +57,17 @@ final class InstagramUiClassifier {
             InstagramProtectionModule.SHARE_SCROLL_VIEW_ID,
             InstagramProtectionModule.COMMENTS_SCROLL_VIEW_ID,
             InstagramProtectionModule.BOTTOM_SHEET_CONTAINER_VIEW_ID);
+    private static final Set<String> NAVIGATION_VIEW_IDS = Set.of(
+            InstagramProtectionModule.PACKAGE_NAME + ":id/feed_tab",
+            InstagramProtectionModule.PACKAGE_NAME + ":id/clips_tab",
+            InstagramProtectionModule.PACKAGE_NAME + ":id/direct_tab",
+            InstagramProtectionModule.PACKAGE_NAME + ":id/search_tab",
+            InstagramProtectionModule.PACKAGE_NAME + ":id/profile_tab");
+    private static final Set<String> ORDINARY_NAVIGATION_VIEW_IDS = Set.of(
+            InstagramProtectionModule.PACKAGE_NAME + ":id/feed_tab",
+            InstagramProtectionModule.PACKAGE_NAME + ":id/direct_tab",
+            InstagramProtectionModule.PACKAGE_NAME + ":id/search_tab",
+            InstagramProtectionModule.PACKAGE_NAME + ":id/profile_tab");
 
     // Instagram keeps "Reels" as a brand name in most locales. These cover known translated
     // labels while geometry remains the primary fallback.
@@ -75,18 +86,33 @@ final class InstagramUiClassifier {
             return new Result(Screen.OTHER, false, false, 0);
         }
 
+        int selectedOrdinaryNavigationTop =
+                selectedOrdinaryNavigationTop(root, screenHeight);
+        if (selectedOrdinaryNavigationTop > 0) {
+            // Exact selected Home/Messages/Explore/Profile tabs are definitive. Querying them by
+            // ID avoids both the bounded generic tree walk and transient isVisibleToUser=false
+            // reports caused by a full-height inline Home Reel.
+            return new Result(
+                    Screen.ORDINARY,
+                    false,
+                    true,
+                    selectedOrdinaryNavigationTop);
+        }
+
         List<AccessibilityNodeInfo> nodes = collect(root);
         try {
             List<AccessibilityNodeInfo> bottomButtons = bottomNavigationButtons(
                     nodes, screenWidth, screenHeight);
             AccessibilityNodeInfo reels = findByTokens(bottomButtons, REELS_TOKENS);
-            boolean reelsSelected = reels != null && isSelected(reels);
+            boolean reelsSelected = reels != null && isSelectedDeep(reels, 2);
             boolean otherNavigationSelected = hasOtherSelectedNavigation(bottomButtons, reels);
-            boolean hasBottomNavigation = hasBottomNavigation(
-                    bottomButtons, screenWidth, screenHeight);
-            int bottomNavigationTop = hasBottomNavigation
-                    ? bottomNavigationTop(bottomButtons)
-                    : 0;
+            int exactBottomNavigationTop = exactBottomNavigationTop(
+                    nodes, screenWidth, screenHeight);
+            boolean hasBottomNavigation = exactBottomNavigationTop > 0
+                    || hasBottomNavigation(bottomButtons, screenWidth, screenHeight);
+            int bottomNavigationTop = exactBottomNavigationTop > 0
+                    ? exactBottomNavigationTop
+                    : hasBottomNavigation ? bottomNavigationTop(bottomButtons) : 0;
             int railCount = verticalActionRailCount(nodes, screenWidth, screenHeight);
             boolean viewerSurface = hasFullscreenScrollSurface(nodes, screenWidth, screenHeight);
             boolean knownModal = hasKnownModal(nodes);
@@ -113,6 +139,53 @@ final class InstagramUiClassifier {
         }
     }
 
+    int selectedOrdinaryNavigationTop(
+            AccessibilityNodeInfo root,
+            int screenHeight) {
+        int selectedTop = Integer.MAX_VALUE;
+        for (String viewId : ORDINARY_NAVIGATION_VIEW_IDS) {
+            List<AccessibilityNodeInfo> candidates =
+                    root.findAccessibilityNodeInfosByViewId(viewId);
+            try {
+                for (AccessibilityNodeInfo candidate : candidates) {
+                    Rect bounds = new Rect();
+                    candidate.getBoundsInScreen(bounds);
+                    boolean selected = isSelectedDeep(candidate, 2);
+                    if (!bounds.isEmpty()
+                            && isSelectedOrdinaryNavigationCandidate(
+                            viewId,
+                            candidate.isEnabled(),
+                            selected,
+                            bounds.centerY(),
+                            bounds.bottom,
+                            screenHeight)) {
+                        selectedTop = Math.min(selectedTop, bounds.top);
+                    }
+                }
+            } finally {
+                for (AccessibilityNodeInfo candidate : candidates) {
+                    candidate.recycle();
+                }
+            }
+        }
+        return selectedTop == Integer.MAX_VALUE ? 0 : selectedTop;
+    }
+
+    static boolean isSelectedOrdinaryNavigationCandidate(
+            String viewId,
+            boolean enabled,
+            boolean selected,
+            int centerY,
+            int bottom,
+            int screenHeight) {
+        return ORDINARY_NAVIGATION_VIEW_IDS.contains(viewId)
+                && enabled
+                && selected
+                && screenHeight > 0
+                && centerY >= screenHeight * 0.78f
+                && bottom <= screenHeight;
+    }
+
     static Screen decide(
             boolean reelsSelected,
             boolean hasBottomNavigation,
@@ -120,6 +193,12 @@ final class InstagramUiClassifier {
             boolean hasViewerSurface,
             boolean hasBottomSheet,
             boolean hasKnownModal) {
+        // Instagram reuses sticky_header_list for both Reel comments and the ordinary Home feed.
+        // A visible non-Reels tab bar is definitive: its feed, inline videos and sheets must stay
+        // native even when one of those reused IDs or Reel-like controls is present.
+        if (hasBottomNavigation && !reelsSelected) {
+            return Screen.ORDINARY;
+        }
         // A foreground comments/share sheet owns the gesture even when the Reels tab remains
         // selected underneath it.
         if (hasKnownModal
@@ -129,11 +208,6 @@ final class InstagramUiClassifier {
         }
         if (reelsSelected) {
             return Screen.REELS_TAB;
-        }
-        // Home, Explore and profile screens keep their bottom navigation. Even an inline Reel can
-        // expose a right-side action rail, so navigation presence wins over that weaker signal.
-        if (hasBottomNavigation) {
-            return Screen.ORDINARY;
         }
         // Require both independent signals. A temporarily incomplete Home tree can lose its bottom
         // navigation for a frame; the service confirms this signature twice before gating.
@@ -201,7 +275,13 @@ final class InstagramUiClassifier {
         List<AccessibilityNodeInfo> result = new ArrayList<>();
         Set<Integer> centerBuckets = new HashSet<>();
         for (AccessibilityNodeInfo node : nodes) {
-            if (!node.isVisibleToUser() || !node.isClickable()) {
+            String viewId = node.getViewIdResourceName();
+            boolean exactNavigationNode = viewId != null
+                    && NAVIGATION_VIEW_IDS.contains(viewId);
+            // An accessibility overlay can make Instagram transiently report its still-visible
+            // tab nodes as not visible-to-user. Exact tab IDs plus bottom-bar geometry remain
+            // authoritative; generic candidates still require normal visibility.
+            if ((!node.isVisibleToUser() && !exactNavigationNode) || !node.isClickable()) {
                 continue;
             }
             Rect bounds = new Rect();
@@ -271,6 +351,46 @@ final class InstagramUiClassifier {
         return top == Integer.MAX_VALUE ? 0 : top;
     }
 
+    private int exactBottomNavigationTop(
+            List<AccessibilityNodeInfo> nodes,
+            int width,
+            int height) {
+        Set<String> foundIds = new HashSet<>();
+        int minX = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int maxY = Integer.MIN_VALUE;
+        int top = Integer.MAX_VALUE;
+        for (AccessibilityNodeInfo node : nodes) {
+            String viewId = node.getViewIdResourceName();
+            if (viewId == null || !NAVIGATION_VIEW_IDS.contains(viewId)) {
+                continue;
+            }
+            Rect bounds = new Rect();
+            node.getBoundsInScreen(bounds);
+            if (bounds.isEmpty() || !isBottomNavigationCandidate(
+                    bounds.centerY(),
+                    bounds.width(),
+                    bounds.height(),
+                    width,
+                    height)) {
+                continue;
+            }
+            foundIds.add(viewId);
+            minX = Math.min(minX, bounds.centerX());
+            maxX = Math.max(maxX, bounds.centerX());
+            minY = Math.min(minY, bounds.centerY());
+            maxY = Math.max(maxY, bounds.centerY());
+            top = Math.min(top, bounds.top);
+        }
+        if (foundIds.size() < 4
+                || maxX - minX < width * 0.55f
+                || maxY - minY > height * 0.09f) {
+            return 0;
+        }
+        return top == Integer.MAX_VALUE ? 0 : top;
+    }
+
     private AccessibilityNodeInfo findByTokens(
             List<AccessibilityNodeInfo> nodes,
             Set<String> tokens) {
@@ -302,11 +422,34 @@ final class InstagramUiClassifier {
         return false;
     }
 
+    private boolean isSelectedDeep(AccessibilityNodeInfo node, int remainingDepth) {
+        if (isSelected(node)) {
+            return true;
+        }
+        if (remainingDepth <= 0) {
+            return false;
+        }
+        for (int index = 0; index < node.getChildCount(); index++) {
+            AccessibilityNodeInfo child = node.getChild(index);
+            if (child == null) {
+                continue;
+            }
+            try {
+                if (isSelectedDeep(child, remainingDepth - 1)) {
+                    return true;
+                }
+            } finally {
+                child.recycle();
+            }
+        }
+        return false;
+    }
+
     private boolean hasOtherSelectedNavigation(
             List<AccessibilityNodeInfo> bottomButtons,
             AccessibilityNodeInfo reels) {
         for (AccessibilityNodeInfo button : bottomButtons) {
-            if (button != reels && isSelected(button)) {
+            if (button != reels && isSelectedDeep(button, 2)) {
                 return true;
             }
         }

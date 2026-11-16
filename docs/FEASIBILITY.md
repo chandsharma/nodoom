@@ -1,6 +1,6 @@
 # M0 feasibility report
 
-Status: **0.5 passed the focused Pixel regression; full M0 entry-point coverage remains open**
+Status: **0.5 alpha.6 passed the focused Pixel regression; full M0 entry-point coverage remains open**
 
 An APK compiling successfully is not proof that another app's current accessibility tree and touch behaviour meet the product requirements. M0 remains a hard gate.
 
@@ -13,7 +13,7 @@ An APK compiling successfully is not proof that another app's current accessibil
 | Android version/build | Android 17 / API 37; `google/caiman/caiman:17/CP3A.261005.005/16271449:user/release-keys` |
 | Navigation mode | Not recorded |
 | Instagram version | 454.0.0.54.77 |
-| No Doom version | 0.1 through 0.5.0-alpha.5 tested |
+| No Doom version | 0.1 through 0.5.0-alpha.6 tested |
 
 ## Candidate A: suppress the swipe
 
@@ -23,7 +23,7 @@ Expected advantage: the next Reel is never requested and the starting Reel keeps
 
 Risk to validate: tap-and-hold is replayed after gesture classification, which may not preserve Instagram's exact pause timing. Multi-touch and UI controls must also pass R-03.
 
-Focused 0.5 result: **Pass**. Five vertical Reel swipes were consumed without advancing. Comments, sharing and the saved-collection list scrolled on their first gesture; immediate short swipes after closing stayed on the chosen Reel; and like/unlike, save/unsave and edge-hold 2× playback remained usable. Native bottom navigation, Home scrolling and notification-shade open/close also remain covered. Earlier 0.1–0.4 findings are documented in the test report. Local screenshots were used as evidence but are not published because they contain third-party and account content.
+Focused 0.5 result: **Pass**. Vertical Reel swipes were consumed without advancing. Comments, sharing and the saved-collection list scrolled on their first gesture; immediate short swipes after closing stayed on the chosen Reel; and like/unlike, save/unsave and edge-hold 2× playback remained usable. Alpha.6 additionally passed 15 consecutive Home swipes across inline Reels, immediate Reels-to-Home release, and a close/reopen Home regression. Earlier 0.1–0.5 findings are documented in the test report. Local screenshots were used as evidence but are not published because they contain third-party and account content.
 
 ## Candidate B: bounce back
 

@@ -2,6 +2,23 @@
 
 All notable user-facing changes are recorded here. Alpha releases remain subject to the physical-device acceptance report in [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md).
 
+## 0.5.0-alpha.6 — 2026-11-16
+
+### Fixed
+
+- Prevents Instagram's normal Home feed from inheriting a stale Reel gesture gate after returning from a Reel, changing tabs, or reopening Instagram.
+- Treats an exact selected Home, Messages, Explore or Profile tab as definitive before considering Reel-like media or reused list IDs.
+- Recognises selected state carried by a tab's nested icon, matching Instagram states where the visible Home parent incorrectly reports `selected=false`.
+- Separates Instagram's exact five-tab navigation group from lower feed controls, so a full-height inline Reel cannot inflate the bottom-button count and hide the Home signal.
+- Stops Instagram's reused `sticky_header_list` Home-feed ID from being mistaken for a Reel comments modal.
+- Adds a rate-limited tab-only escape check while a Reel is protected, releasing a stale gate without repeatedly traversing Instagram's large video tree.
+
+### Validation
+
+- Passed 38 unit tests in both debug and release variants, plus Android lint with zero issues.
+- The owner-signed candidate passed 15 consecutive Home-feed swipes across ordinary posts and full-height inline Reels with no gate, five more swipes after leaving the Reels tab, and five more after force-closing and reopening Instagram.
+- The Reels tab remained on the same Reel through three vertical advance attempts; its gate released within the first 200 ms observation after selecting Home.
+
 ## 0.5.0-alpha.5 — 2026-11-16
 
 ### Fixed

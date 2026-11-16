@@ -8,7 +8,7 @@ No Doom is an open-source Android companion app that lets you watch one full-scr
 
 ### [⬇️ Download No Doom APK](https://github.com/chandsharma/nodoom/releases/latest/download/NoDoom.apk)
 
-**Current version:** `0.5.0-alpha.5` · **Requires:** Android 14 or newer
+**Current version:** `0.5.0-alpha.6` · **Requires:** Android 14 or newer
 
 [View release notes and checksums](https://github.com/chandsharma/nodoom/releases/latest) · [Changelog](CHANGELOG.md) · [Read the installation guide](docs/INSTALL.md)
 
@@ -21,7 +21,7 @@ This is an owner-signed alpha release for Pixel 9 Pro feasibility testing. Compl
 - A 60-minute cooling-off period plus a 10-minute confirmation window makes impulsive disabling harder.
 
 > [!IMPORTANT]
-> No Doom is a real daily-use app under active development, not a tutorial project. `0.5.0-alpha.5` passed its focused Pixel 9 Pro regression for Home scrolling, the one-Reel gate, native navigation and controls, modal scrolling and close transitions, app switching, and the notification shade. It remains an alpha until the full entry-point matrix and extended daily-use checks are complete; always run the in-app live check after Instagram updates.
+> No Doom is a real daily-use app under active development, not a tutorial project. `0.5.0-alpha.6` passed its focused Pixel 9 Pro regression for sustained Home scrolling—including full-height inline Reels—Reels-to-Home transitions, reopening Instagram, the one-Reel gate, native controls, modal scrolling and System UI isolation. It remains an alpha until the full entry-point matrix and extended daily-use checks are complete; always run the in-app live check after Instagram updates.
 
 ## What it changes
 

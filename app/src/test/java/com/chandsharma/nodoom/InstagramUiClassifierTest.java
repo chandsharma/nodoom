@@ -47,6 +47,13 @@ public final class InstagramUiClassifierTest {
     }
 
     @Test
+    public void reusedCommentsListIdOnHomeNeverAttachesReelGate() {
+        assertEquals(
+                InstagramUiClassifier.Screen.ORDINARY,
+                InstagramUiClassifier.decide(false, true, 5, true, true, true));
+    }
+
+    @Test
     public void ordinaryFullScreenPageWithoutActionRailIsUntouched() {
         assertEquals(
                 InstagramUiClassifier.Screen.OTHER,
@@ -77,6 +84,38 @@ public final class InstagramUiClassifierTest {
     public void lowerFeedControlsAreNotNavigationCandidates() {
         org.junit.Assert.assertFalse(InstagramUiClassifier.isBottomNavigationCandidate(
                 1800, 120, 100, 960, 2142));
+    }
+
+    @Test
+    public void exactSelectedHomeTabSurvivesTransientVisibilityLoss() {
+        org.junit.Assert.assertTrue(
+                InstagramUiClassifier.isSelectedOrdinaryNavigationCandidate(
+                        InstagramProtectionModule.PACKAGE_NAME + ":id/feed_tab",
+                        true,
+                        true,
+                        2034,
+                        2088,
+                        2142));
+    }
+
+    @Test
+    public void reelsAndOffscreenControlsAreNotOrdinaryNavigation() {
+        org.junit.Assert.assertFalse(
+                InstagramUiClassifier.isSelectedOrdinaryNavigationCandidate(
+                        InstagramProtectionModule.PACKAGE_NAME + ":id/clips_tab",
+                        true,
+                        true,
+                        2034,
+                        2088,
+                        2142));
+        org.junit.Assert.assertFalse(
+                InstagramUiClassifier.isSelectedOrdinaryNavigationCandidate(
+                        InstagramProtectionModule.PACKAGE_NAME + ":id/feed_tab",
+                        true,
+                        true,
+                        1500,
+                        1560,
+                        2142));
     }
 
 }

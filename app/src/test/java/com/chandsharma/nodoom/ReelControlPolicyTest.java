@@ -42,4 +42,22 @@ public final class ReelControlPolicyTest {
         assertFalse(ReelControlPolicy.shouldProtectDuringModalReturn(false, 2_000L, 2_000L));
         assertFalse(ReelControlPolicy.shouldProtectDuringModalReturn(true, 1_500L, 2_000L));
     }
+
+    @Test
+    public void protectedViewerContentUpdatesProbeForOrdinaryNavigation() {
+        assertTrue(ReelControlPolicy.shouldProbeForOrdinaryNavigation(
+                false, true, false, false));
+        assertTrue(ReelControlPolicy.shouldProbeForOrdinaryNavigation(
+                false, false, true, false));
+        assertTrue(ReelControlPolicy.shouldProbeForOrdinaryNavigation(
+                false, false, false, true));
+    }
+
+    @Test
+    public void modalAndOrdinarySurfacesDoNotRunProtectedEscapeProbe() {
+        assertFalse(ReelControlPolicy.shouldProbeForOrdinaryNavigation(
+                true, true, true, true));
+        assertFalse(ReelControlPolicy.shouldProbeForOrdinaryNavigation(
+                false, false, false, false));
+    }
 }

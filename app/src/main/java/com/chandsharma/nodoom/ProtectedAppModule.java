@@ -49,6 +49,14 @@ interface ProtectedAppModule {
 
     NavigationTarget navigationTarget(AccessibilityNodeInfo node, int screenHeight);
 
+    /**
+     * Lightweight escape check used while a protected viewer is already active.
+     *
+     * <p>This must inspect only the app's navigation surface, not walk the full content tree.
+     * Protected video surfaces can emit hundreds of accessibility updates per second.</p>
+     */
+    boolean hasSelectedOrdinaryNavigation(AccessibilityNodeInfo root);
+
     boolean opensModal(CharSequence text, CharSequence contentDescription);
 
     boolean performModalScroll(AccessibilityNodeInfo root, int action);

@@ -21,6 +21,8 @@ public final class NoDoomAccessibilityService extends AccessibilityService
     private static final long UNCERTAIN_EXIT_DEBOUNCE_MILLIS = 100L;
     private static final long MODAL_LAUNCH_TIMEOUT_MILLIS = 1_000L;
     private static final long CONTENT_INSPECTION_DEBOUNCE_MILLIS = 80L;
+    private static final long PROTECTED_EXIT_CHECK_DELAY_MILLIS = 100L;
+    private static final long PROTECTED_EXIT_CHECK_INTERVAL_MILLIS = 750L;
     private static final long MODAL_WATCHDOG_MILLIS = 350L;
     private static final long MODAL_RETURN_GUARD_MILLIS = 1_000L;
     private static final long GUARD_COOLDOWN_MILLIS = 900L;
@@ -48,6 +50,9 @@ public final class NoDoomAccessibilityService extends AccessibilityService
     private int modalWatchGeneration;
     private boolean protectedInspectionScheduled;
     private int protectedInspectionGeneration;
+    private boolean protectedExitCheckScheduled;
+    private int protectedExitCheckGeneration;
+    private long protectedExitCheckNotBeforeElapsed;
     private long explicitInfiniteFeedStartedElapsed;
     private boolean systemUiObscuring;
     private String viewerCandidatePackage;
@@ -120,7 +125,13 @@ public final class NoDoomAccessibilityService extends AccessibilityService
                 // overlay input and Android kills the service as unresponsive. Coalesce ordinary
                 // changes. A protected viewer is already fail-closed, while a known modal has its
                 // own watchdog; only an unclassified Instagram surface needs a delayed rescan.
-                if (!modalSurfaceActive && !currentScreenIsProtectedViewer) {
+                if (ReelControlPolicy.shouldProbeForOrdinaryNavigation(
+                        modalSurfaceActive,
+                        currentScreenIsProtectedViewer,
+                        protectedViewerBehindModal,
+                        explicitInfiniteFeedSession)) {
+                    scheduleProtectedExitCheck();
+                } else if (!modalSurfaceActive && !currentScreenIsProtectedViewer) {
                     scheduleProtectedInspection(CONTENT_INSPECTION_DEBOUNCE_MILLIS);
                 }
                 return;
@@ -548,6 +559,7 @@ public final class NoDoomAccessibilityService extends AccessibilityService
 
     private void exitViewerImmediately(boolean clearInfiniteFeedSession) {
         viewerExitGeneration++;
+        cancelProtectedExitCheck();
         clearViewerCandidate();
         currentScreenIsProtectedViewer = false;
         modalSurfaceActive = false;
@@ -565,6 +577,7 @@ public final class NoDoomAccessibilityService extends AccessibilityService
     private void suspendGestureGate() {
         viewerExitGeneration++;
         cancelProtectedInspection();
+        cancelProtectedExitCheck();
         clearViewerCandidate();
         currentScreenIsProtectedViewer = false;
         modalSurfaceActive = false;
@@ -638,6 +651,60 @@ public final class NoDoomAccessibilityService extends AccessibilityService
     private void cancelProtectedInspection() {
         protectedInspectionGeneration++;
         protectedInspectionScheduled = false;
+    }
+
+    private void scheduleProtectedExitCheck() {
+        if (protectedExitCheckScheduled) {
+            return;
+        }
+        long now = SystemClock.elapsedRealtime();
+        long delay = Math.max(
+                PROTECTED_EXIT_CHECK_DELAY_MILLIS,
+                protectedExitCheckNotBeforeElapsed - now);
+        protectedExitCheckScheduled = true;
+        int generation = protectedExitCheckGeneration;
+        handler.postDelayed(() -> {
+            if (generation != protectedExitCheckGeneration) {
+                return;
+            }
+            protectedExitCheckScheduled = false;
+            protectedExitCheckNotBeforeElapsed = SystemClock.elapsedRealtime()
+                    + PROTECTED_EXIT_CHECK_INTERVAL_MILLIS;
+            inspectProtectedExitHint();
+        }, delay);
+    }
+
+    private void inspectProtectedExitHint() {
+        if (currentModule == null
+                || stateStore == null
+                || !stateStore.get().mode.isProtected()
+                || modalSurfaceActive
+                || systemUiObscuring) {
+            return;
+        }
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null || root.getPackageName() == null) {
+            if (root != null) {
+                root.recycle();
+            }
+            return;
+        }
+        try {
+            if (!currentModule.packageName().contentEquals(root.getPackageName())) {
+                return;
+            }
+            if (currentModule.hasSelectedOrdinaryNavigation(root)) {
+                exitViewerImmediately(true);
+            }
+        } finally {
+            root.recycle();
+        }
+    }
+
+    private void cancelProtectedExitCheck() {
+        protectedExitCheckGeneration++;
+        protectedExitCheckScheduled = false;
+        protectedExitCheckNotBeforeElapsed = 0L;
     }
 
     private void cancelModalWatchdog() {

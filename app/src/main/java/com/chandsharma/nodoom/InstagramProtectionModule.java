@@ -1,5 +1,6 @@
 package com.chandsharma.nodoom;
 
+import android.graphics.Rect;
 import android.view.accessibility.AccessibilityNodeInfo;
 
 import java.util.List;
@@ -75,6 +76,16 @@ final class InstagramProtectionModule implements ProtectedAppModule {
             default:
                 return NavigationTarget.NONE;
         }
+    }
+
+    @Override
+    public boolean hasSelectedOrdinaryNavigation(AccessibilityNodeInfo root) {
+        Rect rootBounds = new Rect();
+        root.getBoundsInScreen(rootBounds);
+        return !rootBounds.isEmpty()
+                && classifier.selectedOrdinaryNavigationTop(
+                root,
+                rootBounds.bottom) > 0;
     }
 
     @Override

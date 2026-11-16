@@ -1,13 +1,13 @@
 # Acceptance test report
 
-Status: **0.5.0-alpha.5 passed the focused physical regression; the full acceptance matrix and extended-use checks remain open.**
+Status: **0.5.0-alpha.6 passed the focused Home-isolation and one-Reel regression; the full acceptance matrix and extended-use checks remain open.**
 
 | Field | Value |
 |---|---|
 | Device | Pixel 9 Pro (`caiman`) |
 | Android version/build | Android 17 / API 37; `google/caiman/caiman:17/CP3A.261005.005/16271449:user/release-keys` |
 | Instagram version | 454.0.0.54.77 |
-| No Doom version | 0.1 through 0.5.0-alpha.5 tested |
+| No Doom version | 0.1 through 0.5.0-alpha.6 tested |
 | Test date | 16 Nov 2026 |
 
 The authoritative acceptance checklist is in `PRODUCT_REQUIREMENTS.md`. Results must be recorded as **Pass**, **Fail** or **Not run** with evidence; empty checkboxes must never be interpreted as a pass.
@@ -16,7 +16,7 @@ The authoritative acceptance checklist is in `PRODUCT_REQUIREMENTS.md`. Results 
 
 | Check | Result |
 |---|---|
-| Unit tests | **Pass — 33 tests, zero failures/errors/skips**, including inline-feed/full-screen, modal-transition, sheet-recognition and System UI isolation regressions, 16 Nov 2026 |
+| Unit tests | **Pass — 38 tests in each of the debug and release variants, zero failures/errors/skips**, including exact navigation, inline-feed/full-screen, modal-transition, sheet-recognition and System UI isolation regressions, 16 Nov 2026 |
 | Android lint | Pass, zero issues — 16 Nov 2026 |
 | Debug APK | Pass — assembled successfully from the release source |
 | Release APK signature | Pass — owner key, RSA 4096, certificate SHA-256 `5822e80c3db9b629f0cd4e8a35fd274da98892a54ee60d5d0cb8fd653f1db28e` |
@@ -87,6 +87,21 @@ The 0.4 control hand-off still had a race: a comments/share/save transition coul
 | Quiet operation | **Pass** — no release diagnostic logging; notification and blocked-swipe feedback remain opt-in |
 | Previous regression set | **Pass** — Home scrolling, native bottom navigation and notification-shade open/close with immediate gate restoration remain covered |
 
+The follow-up daily-use check exposed that Instagram reuses `sticky_header_list` for its normal Home feed and sometimes stores the selected Home state only on a nested tab icon. Full-height inline Reels also placed three feed controls in the same geometry band as the five navigation tabs. Together, those signals could leave the Reel gate above Home.
+
+## Focused physical findings from 0.5.0-alpha.6
+
+| Area | Result |
+|---|---|
+| Upgrade/install | **Pass** — the owner-signed APK upgraded in place over alpha.5; Accessibility remained enabled and was rebound to the new code |
+| Sustained Home feed | **Pass** — 15 consecutive full-height swipes crossed ordinary posts and full-height inline Reels with the Reel gate absent throughout |
+| Reels tab | **Pass** — the same Reel, account and engagement counts remained visible through three vertical advance attempts; the gate remained attached |
+| Reels to Home | **Pass** — selecting Home removed the gate by the first 200 ms observation; five subsequent Home swipes remained native |
+| Close and reopen | **Pass** — force-closing Instagram removed any gate; reopening on Home showed no gate and five subsequent feed swipes remained native |
+| Classifier regression | **Pass** — exact bottom-tab IDs, descendant selected state and reused Home list IDs are covered by unit rules |
+| Stability/noise | **Pass** — no No Doom crash, ANR, notification or blocked-swipe toast was observed; release diagnostic logging is absent |
+| Privacy/signing | **Pass** — no Internet permission; one owner signer; certificate SHA-256 `5822e80c3db9b629f0cd4e8a35fd274da98892a54ee60d5d0cb8fd653f1db28e` |
+
 ## Physical acceptance
 
 The focused regressions above pass. T-01 through T-54 are **not collectively passed**: DM, story, Explore, profile, search/audio/hashtag, saved, notification and external-link entry points plus long-press/multi-touch and timer/removal flows still require a complete owner run.
@@ -95,8 +110,8 @@ The focused regressions above pass. T-01 through T-54 are **not collectively pas
 
 | Measurement | Result |
 |---|---|
-| APK size | 211,216 bytes (`NoDoom-0.5.0-alpha.5.apk`) |
-| APK SHA-256 | `332cde2eb07178b9762f1dace68caa382516d5e91c5170694f78c2835a513175` |
+| APK size | 213,564 bytes (`NoDoom-0.5.0-alpha.6.apk`) |
+| APK SHA-256 | `9e23d4507f23a404ce2cb0e2168e2dddfcb2dea3175a03e19b908afe986bf650` |
 | Idle memory | Pending |
 | Two-hour Instagram battery impact | Pending |
 | Overnight wake-ups | Pending |

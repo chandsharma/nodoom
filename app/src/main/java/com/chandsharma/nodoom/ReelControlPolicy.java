@@ -33,6 +33,17 @@ final class ReelControlPolicy {
         return !otherNavigationSelected && guardUntilElapsed > nowElapsed;
     }
 
+    static boolean shouldProbeForOrdinaryNavigation(
+            boolean modalSurfaceActive,
+            boolean currentScreenIsProtectedViewer,
+            boolean protectedViewerBehindModal,
+            boolean explicitInfiniteFeedSession) {
+        return !modalSurfaceActive
+                && (currentScreenIsProtectedViewer
+                || protectedViewerBehindModal
+                || explicitInfiniteFeedSession);
+    }
+
     private static String join(CharSequence first, CharSequence second) {
         StringBuilder result = new StringBuilder();
         if (first != null) {

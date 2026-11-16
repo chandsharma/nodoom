@@ -4,6 +4,16 @@
 
 No Doom is an open-source Android companion app that lets you watch the Reel you intentionally opened, then blocks the swipe to the next Reel. It also redirects Instagram's Reels tab back to Home.
 
+## Download for Android
+
+### [⬇️ Download No Doom APK](https://github.com/chandsharma/nodoom/releases/latest/download/NoDoom.apk)
+
+**Current version:** `0.1.0-alpha.1` · **Requires:** Android 14 or newer
+
+[View release notes and checksums](https://github.com/chandsharma/nodoom/releases/latest) · [Read the installation guide](docs/INSTALL.md)
+
+This is an owner-signed alpha release for Pixel 9 Pro feasibility testing. Complete the in-app live check after installation before relying on its protection.
+
 - No root, bootloader unlock, patched APK, clone, or unofficial Instagram client.
 - Works alongside the official Instagram app installed from Google Play.
 - No Instagram login and no Instagram or Meta API access.
@@ -33,7 +43,7 @@ The release manifest intentionally has **no `INTERNET` permission**. Screen stru
 
 ## Install
 
-There is no Play Store listing. Signed APKs will be attached to this repository's [GitHub Releases](../../releases), together with a SHA-256 checksum. Follow the [plain-language installation guide](docs/INSTALL.md); Android requires an explicit “Allow restricted settings” step before a sideloaded accessibility service can be enabled.
+There is no Play Store listing. Owner-signed APKs are published on this repository's [GitHub Releases](https://github.com/chandsharma/nodoom/releases), together with SHA-256 checksums. Follow the [plain-language installation guide](docs/INSTALL.md); Android requires an explicit “Allow restricted settings” step before a sideloaded accessibility service can be enabled.
 
 Never install an APK posted in an issue, discussion, comment, mirror, or chat. Use only this repository's Releases page and verify its checksum.
 

@@ -7,6 +7,18 @@ def signingProperties = new Properties()
 if (signingPropertiesFile.exists()) {
     signingProperties.load(new FileInputStream(signingPropertiesFile))
 }
+def releaseStoreFile = signingProperties.getProperty('storeFile')
+        ?: System.getenv('NODOOM_STORE_FILE')
+def releaseStorePassword = signingProperties.getProperty('storePassword')
+        ?: System.getenv('NODOOM_STORE_PASSWORD')
+def releaseKeyAlias = signingProperties.getProperty('keyAlias')
+        ?: System.getenv('NODOOM_KEY_ALIAS')
+def releaseKeyPassword = signingProperties.getProperty('keyPassword')
+        ?: System.getenv('NODOOM_KEY_PASSWORD')
+def hasReleaseSigning = releaseStoreFile
+        && releaseStorePassword
+        && releaseKeyAlias
+        && releaseKeyPassword
 
 android {
     namespace 'com.chandsharma.nodoom'
@@ -24,11 +36,11 @@ android {
 
     signingConfigs {
         release {
-            if (signingPropertiesFile.exists()) {
-                storeFile rootProject.file(signingProperties['storeFile'])
-                storePassword signingProperties['storePassword']
-                keyAlias signingProperties['keyAlias']
-                keyPassword signingProperties['keyPassword']
+            if (hasReleaseSigning) {
+                storeFile rootProject.file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
             }
         }
     }
@@ -42,7 +54,7 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            if (signingPropertiesFile.exists()) {
+            if (hasReleaseSigning) {
                 signingConfig signingConfigs.release
             }
         }

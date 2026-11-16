@@ -49,7 +49,7 @@ Requirements:
 ./gradlew test assembleDebug
 ```
 
-The debug APK is written to `app/build/outputs/apk/debug/`. Release signing is deliberately local and the owner's key is never committed. See [Releasing](docs/RELEASING.md).
+The debug APK is written to `app/build/outputs/apk/debug/`. Release signing is deliberately local and the owner's key is never committed. The owner can build the signed artifact with `./scripts/build-owner-release.sh`; see [Releasing](docs/RELEASING.md).
 
 ## Current milestone
 

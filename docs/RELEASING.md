@@ -6,7 +6,15 @@ Release signing material belongs to the repository owner and must never be commi
 
 Create a dedicated Android signing key in the ignored `keystore/` directory. Store the keystore and its password in the owner's password manager plus an offline backup. Losing it prevents future in-place updates.
 
-Create an ignored `signing.properties` file:
+For the owner's Mac, the alpha signing key is stored at `keystore/nodoom-release.jks` and its generated password is stored in macOS Keychain under service **NoDoom Android signing key**, account **chandsharma**. The key and password are not in Git or GitHub.
+
+Retrieve the password for backup without placing it in shell history (the command prints it to the terminal, so do this privately):
+
+```bash
+security find-generic-password -a chandsharma -s "NoDoom Android signing key" -w
+```
+
+On another machine, create an ignored `signing.properties` file:
 
 ```properties
 storeFile=keystore/nodoom-release.jks
@@ -18,7 +26,7 @@ keyPassword=OWNER_SECRET
 ## Build and verify
 
 ```bash
-./gradlew clean test lint assembleRelease
+./scripts/build-owner-release.sh
 $ANDROID_HOME/build-tools/34.0.0/apksigner verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
 shasum -a 256 app/build/outputs/apk/release/app-release.apk
 ```

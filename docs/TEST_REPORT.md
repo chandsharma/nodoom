@@ -1,13 +1,13 @@
 # Acceptance test report
 
-Status: **0.4.0-alpha.4 passed the focused physical regression; the full acceptance matrix and extended-use checks remain open.**
+Status: **0.5.0-alpha.5 passed the focused physical regression; the full acceptance matrix and extended-use checks remain open.**
 
 | Field | Value |
 |---|---|
 | Device | Pixel 9 Pro (`caiman`) |
 | Android version/build | Android 17 / API 37; `google/caiman/caiman:17/CP3A.261005.005/16271449:user/release-keys` |
 | Instagram version | 454.0.0.54.77 |
-| No Doom version | 0.1 through 0.4.0-alpha.4 tested |
+| No Doom version | 0.1 through 0.5.0-alpha.5 tested |
 | Test date | 16 Nov 2026 |
 
 The authoritative acceptance checklist is in `PRODUCT_REQUIREMENTS.md`. Results must be recorded as **Pass**, **Fail** or **Not run** with evidence; empty checkboxes must never be interpreted as a pass.
@@ -16,7 +16,7 @@ The authoritative acceptance checklist is in `PRODUCT_REQUIREMENTS.md`. Results 
 
 | Check | Result |
 |---|---|
-| Unit tests | **Pass — 25 tests, zero failures/errors/skips**, including inline-feed/full-screen and System UI isolation regressions, 16 Nov 2026 |
+| Unit tests | **Pass — 33 tests, zero failures/errors/skips**, including inline-feed/full-screen, modal-transition, sheet-recognition and System UI isolation regressions, 16 Nov 2026 |
 | Android lint | Pass, zero issues — 16 Nov 2026 |
 | Debug APK | Pass — assembled successfully from the release source |
 | Release APK signature | Pass — owner key, RSA 4096, certificate SHA-256 `5822e80c3db9b629f0cd4e8a35fd274da98892a54ee60d5d0cb8fd653f1db28e` |
@@ -72,6 +72,21 @@ Version 0.4.0-alpha.4 narrows navigation candidates to the Pixel's lowest Instag
 | Quiet default | **Pass** — no repeated toast, active protection notification or release diagnostic logging |
 | Privacy/signing | **Pass** — no Internet permission; one owner signer; certificate SHA-256 `5822e80c3db9b629f0cd4e8a35fd274da98892a54ee60d5d0cb8fd653f1db28e` |
 
+The 0.4 control hand-off still had a race: a comments/share/save transition could leave the gate absent long enough for one or two short next-Reel swipes, and generic Accessibility clicks did not reliably preserve every native Reel control.
+
+## Focused physical findings from 0.5.0-alpha.5
+
+| Area | Result |
+|---|---|
+| Upgrade/install | **Pass** — owner-signed candidate upgraded in place and the Accessibility service rebound |
+| Reels tab | **Pass** — the same Reel remained visible through five mixed short/long vertical advance attempts and the gate remained active |
+| Comments | **Pass** — sheet opened and its exact list accepted forward scroll actions; after closing, two short advance swipes did not leave the chosen Reel |
+| Sharing | **Pass** — the first share-sheet swipe scrolled its exact recipient list; immediate short swipes after closing remained blocked |
+| Like and save | **Pass** — like/unlike and save/unsave changed Instagram state correctly; the saved-collection list scrolled, its close transition remained protected, and each test state was restored |
+| Edge hold | **Pass with alpha timing note** — Instagram entered its 2× held-playback state; protection independently rearmed after the replay completed |
+| Quiet operation | **Pass** — no release diagnostic logging; notification and blocked-swipe feedback remain opt-in |
+| Previous regression set | **Pass** — Home scrolling, native bottom navigation and notification-shade open/close with immediate gate restoration remain covered |
+
 ## Physical acceptance
 
 The focused regressions above pass. T-01 through T-54 are **not collectively passed**: DM, story, Explore, profile, search/audio/hashtag, saved, notification and external-link entry points plus long-press/multi-touch and timer/removal flows still require a complete owner run.
@@ -80,8 +95,8 @@ The focused regressions above pass. T-01 through T-54 are **not collectively pas
 
 | Measurement | Result |
 |---|---|
-| APK size | 204,992 bytes (`NoDoom-0.4.0-alpha.4.apk`) |
-| APK SHA-256 | `aa6e4b20c957eedd6b3ac73150ca96fbcddccaffe73ce109eb043319466d5a58` |
+| APK size | 211,216 bytes (`NoDoom-0.5.0-alpha.5.apk`) |
+| APK SHA-256 | `332cde2eb07178b9762f1dace68caa382516d5e91c5170694f78c2835a513175` |
 | Idle memory | Pending |
 | Two-hour Instagram battery impact | Pending |
 | Overnight wake-ups | Pending |

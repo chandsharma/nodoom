@@ -48,4 +48,8 @@ interface ProtectedAppModule {
     Detection inspect(AccessibilityNodeInfo root, int screenWidth, int screenHeight);
 
     NavigationTarget navigationTarget(AccessibilityNodeInfo node, int screenHeight);
+
+    boolean opensModal(CharSequence text, CharSequence contentDescription);
+
+    boolean performModalScroll(AccessibilityNodeInfo root, int action);
 }

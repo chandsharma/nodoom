@@ -53,6 +53,10 @@ final class InstagramUiClassifier {
     }
 
     private static final int MAX_NODES = 700;
+    private static final Set<String> MODAL_VIEW_IDS = Set.of(
+            InstagramProtectionModule.SHARE_SCROLL_VIEW_ID,
+            InstagramProtectionModule.COMMENTS_SCROLL_VIEW_ID,
+            InstagramProtectionModule.BOTTOM_SHEET_CONTAINER_VIEW_ID);
 
     // Instagram keeps "Reels" as a brand name in most locales. These cover known translated
     // labels while geometry remains the primary fallback.
@@ -85,6 +89,7 @@ final class InstagramUiClassifier {
                     : 0;
             int railCount = verticalActionRailCount(nodes, screenWidth, screenHeight);
             boolean viewerSurface = hasFullscreenScrollSurface(nodes, screenWidth, screenHeight);
+            boolean knownModal = hasKnownModal(nodes);
             boolean bottomSheet = hasForegroundBottomSheet(nodes, screenWidth, screenHeight);
             boolean strongViewerSignature = railCount >= 3 && viewerSurface;
             Screen screen = decide(
@@ -92,7 +97,8 @@ final class InstagramUiClassifier {
                     hasBottomNavigation,
                     railCount,
                     viewerSurface,
-                    bottomSheet);
+                    bottomSheet,
+                    knownModal);
             return new Result(
                     screen,
                     strongViewerSignature,
@@ -112,10 +118,13 @@ final class InstagramUiClassifier {
             boolean hasBottomNavigation,
             int verticalRailCount,
             boolean hasViewerSurface,
-            boolean hasBottomSheet) {
+            boolean hasBottomSheet,
+            boolean hasKnownModal) {
         // A foreground comments/share sheet owns the gesture even when the Reels tab remains
         // selected underneath it.
-        if (hasBottomSheet) {
+        if (hasKnownModal
+                || (hasBottomSheet
+                && (reelsSelected || (verticalRailCount >= 3 && hasViewerSurface)))) {
             return Screen.REEL_MODAL;
         }
         if (reelsSelected) {
@@ -167,7 +176,7 @@ final class InstagramUiClassifier {
     private List<AccessibilityNodeInfo> collect(AccessibilityNodeInfo root) {
         List<AccessibilityNodeInfo> result = new ArrayList<>();
         ArrayDeque<AccessibilityNodeInfo> queue = new ArrayDeque<>();
-        queue.add(root);
+        queue.addLast(root);
         int visited = 0;
         while (!queue.isEmpty() && visited++ < MAX_NODES) {
             AccessibilityNodeInfo node = queue.removeFirst();
@@ -178,6 +187,9 @@ final class InstagramUiClassifier {
                     queue.addLast(child);
                 }
             }
+        }
+        while (!queue.isEmpty()) {
+            queue.removeFirst().recycle();
         }
         return result;
     }
@@ -389,9 +401,6 @@ final class InstagramUiClassifier {
             String className = node.getClassName() == null
                     ? ""
                     : node.getClassName().toString().toLowerCase(Locale.ROOT);
-            if (className.contains("edittext") && bounds.centerY() > height * 0.55f) {
-                return true;
-            }
             boolean sheetGeometry = bounds.top > height * 0.20f
                     && bounds.bottom > height * 0.80f
                     && bounds.width() > width * 0.72f
@@ -399,7 +408,21 @@ final class InstagramUiClassifier {
             if (sheetGeometry
                     && (node.isScrollable()
                     || className.contains("recyclerview")
-                    || className.contains("listview"))) {
+                    || className.contains("listview")
+                    || className.contains("gridview"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasKnownModal(List<AccessibilityNodeInfo> nodes) {
+        for (AccessibilityNodeInfo node : nodes) {
+            if (!node.isVisibleToUser()) {
+                continue;
+            }
+            String viewId = node.getViewIdResourceName();
+            if (viewId != null && MODAL_VIEW_IDS.contains(viewId)) {
                 return true;
             }
         }

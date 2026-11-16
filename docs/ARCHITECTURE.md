@@ -16,8 +16,8 @@ The manifest contains no Internet permission. Android must deliver foreground pa
 | `RemovalStateStore` | Ten-minute wait and ten-minute removal window using monotonic time |
 | `AlarmScheduler` | Two exact elapsed-time transitions; no polling or background ticking |
 | `NoDoomAccessibilityService` | Generic window-safety and gesture-session coordinator; acts only while protected |
-| `ProtectedAppModule` / `ProtectedAppRegistry` | Stable extension boundary for app-specific modules |
-| `InstagramProtectionModule` | Maps Instagram recognition into generic protected surfaces |
+| `ProtectedAppModule` / `ProtectedAppRegistry` | Stable extension boundary for app-specific recognition, modal controls and list scrolling |
+| `InstagramProtectionModule` | Maps Instagram recognition and known modal list IDs into generic protected surfaces |
 | `InstagramUiClassifier` | Centralised, version-maintainable screen recognition |
 | `GestureGateOverlay` | Transparent Accessibility overlay active only in a recognised Reel viewer |
 | `WindowSafetyPolicy` | Fail-closed foreground-package and System UI rule |
@@ -32,7 +32,7 @@ The classifier combines:
 2. A vertical rail of small clickable controls on the right.
 3. A large scroll surface or custom pager geometry.
 4. Bottom-navigation presence and selection state, preventing inline feed Reels from being mistaken for a full-screen viewer.
-5. Detection of foreground sheets so comments and share lists remain scrollable.
+5. Exact visible markers for comments, sharing and the saved-collection sheet, plus conservative geometry for other scrollable sheets.
 6. Two consecutive observations for an unselected viewer, preventing a single incomplete Home tree from enabling the gate.
 
 No single username, caption, like count or private message is used. Language tokens are limited to bottom navigation and geometry remains the fallback. The M0 device pass must calibrate these signals against the current Instagram build.
@@ -42,11 +42,13 @@ No single username, caption, like count or private message is used. Language tok
 The status-bar and display-cutout strip is excluded from the touchable region. Android System UI events immediately remove the overlay, and the active foreground package is checked again before a forwarded gesture can restore it. Within a confirmed Reel viewer:
 
 - A clearly vertical movement is consumed.
-- A tap, hold or horizontal gesture is replayed through Android's accessibility gesture API.
-- The overlay disappears when comments or another foreground sheet is recognised.
+- A tap, hold or horizontal gesture is replayed through Android's accessibility gesture API after the intercepted touch finishes.
+- Recognised comment/share controls use a direct native action while the gate remains attached across the transition.
+- A vertical gesture inside a recognised comments, sharing or collection list is consumed and converted into a scroll action on that exact foreground list. Unknown sheets stay fail-closed and cannot pass a gesture to the Reel pager underneath.
+- While a foreground sheet is open, a short-lived modal watcher retains the protected Reel session and rearms ordinary viewer classification as soon as the sheet closes, including transitions where Instagram omits a close event.
 - Home, Explore and profile surfaces release the overlay immediately.
 
-Replaying a long press only after classification may not match Instagram's press timing perfectly. That is an explicit M0 go/no-go item; if it prevents R-03, the implementation must move to the documented bounce-back fallback before production.
+Because a long press is replayed after classification, its effect begins after the finger is released rather than during the original hold. Instagram's edge-hold 2× playback interaction is functional on the tested build, but this timing difference and multi-touch remain explicit alpha limitations. If either prevents R-03 in daily use, the implementation must move to the documented bounce-back fallback before a stable release.
 
 ## Lock timing
 

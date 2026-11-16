@@ -2,6 +2,24 @@
 
 All notable user-facing changes are recorded here. Alpha releases remain subject to the physical-device acceptance report in [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md).
 
+## 0.5.0-alpha.5 — 2026-11-16
+
+### Fixed
+
+- Opens comments and sharing with their native accessibility actions, then scrolls only Instagram's exact comments/share list while the underlying Reel gate stays attached.
+- Recognises Instagram's saved-collection sheet and scrolls its collection list without exposing the Reel underneath.
+- Keeps the protected Reel session behind a foreground sheet and watches its close transition, preventing one or two next-Reel swipes from slipping through after comments, sharing or save UI closes.
+- Preserves native like/unlike and save/unsave controls with a short, reliable gesture-replay hand-off instead of an Accessibility click that Instagram can ignore.
+- Replays edge holds for Instagram's 2× playback interaction, then independently reinspects the viewer so protection cannot remain disarmed when the held-playback surface emits no final event.
+- Classifies the final finger displacement even when Android supplies only DOWN/UP events, closing the short-swipe leak seen after dismissing a sheet.
+- Coalesces Instagram content changes and never traverses a large modal tree from touch dispatch, preventing the gesture-window timeout seen during early testing.
+
+### Validation
+
+- Passed 33 unit tests and Android lint with zero issues.
+- The owner-signed candidate passed focused Pixel 9 Pro checks for five blocked Reel swipes, comment/share/collection scrolling, immediate post-modal rearming, like/unlike, save/unsave and edge-hold 2× playback.
+- Home, native bottom navigation, foreground switching and notification-shade isolation remain covered by the physical regression; the broader entry-point matrix and extended daily-use testing remain open.
+
 ## 0.4.0-alpha.4 — 2026-11-16
 
 ### Fixed

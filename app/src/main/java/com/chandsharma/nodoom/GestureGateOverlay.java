@@ -22,10 +22,26 @@ import java.util.ArrayList;
 import java.util.List;
 
 final class GestureGateOverlay {
+    private static final long MIN_REPLAY_DURATION_MILLIS = 50L;
+
+    enum TapResult {
+        NOT_HANDLED,
+        OPENS_MODAL
+    }
+
+    enum VerticalGestureResult {
+        BLOCK,
+        HANDLED
+    }
+
     interface Callback {
         void onVerticalSwipeBlocked();
 
-        boolean onTap(float x, float y);
+        VerticalGestureResult onModalVerticalGesture(float deltaY);
+
+        TapResult onTap(float x, float y);
+
+        void onForwardedGestureFinished();
 
         boolean shouldRestoreGate();
     }
@@ -92,7 +108,7 @@ final class GestureGateOverlay {
             try {
                 windowManager.addView(gateView, layoutParams);
                 attached = true;
-            } catch (RuntimeException failure) {
+            } catch (RuntimeException ignored) {
                 attached = false;
             }
         });
@@ -123,6 +139,13 @@ final class GestureGateOverlay {
         removeNow();
         forwarding = true;
 
+        // Dispatch after the intercepted ACTION_UP has left View dispatch. Injecting from inside
+        // that callback can be accepted by Android yet still be dropped before Instagram sees it.
+        handler.postDelayed(() -> dispatchForwardedGesture(points, durationMillis), 50L);
+    }
+
+    private void dispatchForwardedGesture(List<PointF> points, long durationMillis) {
+
         Path path = new Path();
         PointF first = points.get(0);
         path.moveTo(first.x, first.y);
@@ -131,7 +154,11 @@ final class GestureGateOverlay {
             path.lineTo(point.x, point.y);
         }
 
-        long duration = Math.max(1L, Math.min(10_000L, durationMillis));
+        // Shell-driven taps and some OEM input paths report a near-zero duration. Instagram drops
+        // those synthetic taps, so replay them with a short but still ordinary tap duration.
+        long duration = Math.max(
+                MIN_REPLAY_DURATION_MILLIS,
+                Math.min(10_000L, durationMillis));
         GestureDescription gesture = new GestureDescription.Builder()
                 .addStroke(new GestureDescription.StrokeDescription(path, 0L, duration))
                 .build();
@@ -156,6 +183,7 @@ final class GestureGateOverlay {
 
     private void finishForwarding() {
         forwarding = false;
+        callback.onForwardedGestureFinished();
         handler.post(() -> {
             if (callback.shouldRestoreGate()) {
                 show();
@@ -165,6 +193,7 @@ final class GestureGateOverlay {
 
     private final class GateView extends View {
         private final int touchSlop;
+        private final int longPressTimeout;
         private final List<PointF> points = new ArrayList<>();
         private float downX;
         private float downY;
@@ -176,6 +205,7 @@ final class GestureGateOverlay {
             setBackgroundColor(android.graphics.Color.TRANSPARENT);
             setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
             touchSlop = ViewConfiguration.get(service).getScaledTouchSlop();
+            longPressTimeout = ViewConfiguration.getLongPressTimeout();
         }
 
         @Override
@@ -206,12 +236,33 @@ final class GestureGateOverlay {
             }
             if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
                 addPoint(event);
+                // Fast swipes can arrive as DOWN/UP with no MOVE sample. Classify the final
+                // displacement too, otherwise a large short-duration swipe is mistaken for a tap
+                // and replayed straight into Instagram's next-Reel pager.
+                if (SwipeClassifier.isVertical(
+                        event.getRawX() - downX,
+                        event.getRawY() - downY,
+                        touchSlop)) {
+                    verticalSwipe = true;
+                }
                 long duration = Math.max(1L, event.getEventTime() - downTime);
                 if (verticalSwipe) {
-                    callback.onVerticalSwipeBlocked();
+                    VerticalGestureResult result = callback.onModalVerticalGesture(
+                            event.getRawY() - downY);
+                    if (result == VerticalGestureResult.BLOCK) {
+                        callback.onVerticalSwipeBlocked();
+                    }
                 } else if (action == MotionEvent.ACTION_UP && !points.isEmpty()) {
                     performClick();
-                    if (!callback.onTap(event.getRawX(), event.getRawY())) {
+                    TapResult result = duration >= longPressTimeout
+                            ? TapResult.NOT_HANDLED
+                            : callback.onTap(event.getRawX(), event.getRawY());
+                    if (result == TapResult.OPENS_MODAL) {
+                        // Keep the gate attached across the sheet transition. Once Instagram's
+                        // modal is recognised, its list receives accessibility scroll actions;
+                        // when it closes, an early next-Reel swipe is still intercepted instead of
+                        // leaking through.
+                    } else if (result == TapResult.NOT_HANDLED) {
                         forwardGesture(new ArrayList<>(points), duration);
                     }
                 }

@@ -19,6 +19,10 @@ public final class NoDoomAccessibilityService extends AccessibilityService
     private static final long VIEWER_CONFIRMATION_MILLIS = 80L;
     private static final long INFINITE_FEED_TRANSITION_GRACE_MILLIS = 1_000L;
     private static final long UNCERTAIN_EXIT_DEBOUNCE_MILLIS = 100L;
+    private static final long MODAL_LAUNCH_TIMEOUT_MILLIS = 1_000L;
+    private static final long CONTENT_INSPECTION_DEBOUNCE_MILLIS = 80L;
+    private static final long MODAL_WATCHDOG_MILLIS = 350L;
+    private static final long MODAL_RETURN_GUARD_MILLIS = 1_000L;
     private static final long GUARD_COOLDOWN_MILLIS = 900L;
     private static final long RECOGNITION_WRITE_COOLDOWN_MILLIS = 5_000L;
     private static final long BLOCK_HINT_COOLDOWN_MILLIS = 30_000L;
@@ -35,6 +39,15 @@ public final class NoDoomAccessibilityService extends AccessibilityService
     private ProtectedAppModule currentModule;
     private boolean currentScreenIsProtectedViewer;
     private boolean explicitInfiniteFeedSession;
+    private boolean modalLaunchPending;
+    private boolean modalSurfaceActive;
+    private boolean protectedViewerBehindModal;
+    private long modalLaunchDeadlineElapsed;
+    private long modalReturnGuardUntilElapsed;
+    private boolean modalWatchdogScheduled;
+    private int modalWatchGeneration;
+    private boolean protectedInspectionScheduled;
+    private int protectedInspectionGeneration;
     private long explicitInfiniteFeedStartedElapsed;
     private boolean systemUiObscuring;
     private String viewerCandidatePackage;
@@ -99,6 +112,19 @@ public final class NoDoomAccessibilityService extends AccessibilityService
             if (trackNavigationClick(module, event)) {
                 return;
             }
+            int eventType = event.getEventType();
+            if (eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+                    || eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
+                // Instagram can emit hundreds of content updates while a Reel and a large share
+                // sheet animate. Walking the remote accessibility tree for every update starves
+                // overlay input and Android kills the service as unresponsive. Coalesce ordinary
+                // changes. A protected viewer is already fail-closed, while a known modal has its
+                // own watchdog; only an unclassified Instagram surface needs a delayed rescan.
+                if (!modalSurfaceActive && !currentScreenIsProtectedViewer) {
+                    scheduleProtectedInspection(CONTENT_INSPECTION_DEBOUNCE_MILLIS);
+                }
+                return;
+            }
             inspectProtectedApp(module);
             return;
         }
@@ -143,28 +169,89 @@ public final class NoDoomAccessibilityService extends AccessibilityService
     }
 
     @Override
-    public boolean onTap(float x, float y) {
+    public GestureGateOverlay.VerticalGestureResult onModalVerticalGesture(float deltaY) {
+        if (currentModule == null || stateStore == null
+                || !stateStore.get().mode.isProtected()
+                || systemUiObscuring
+                || !modalSurfaceActive) {
+            return GestureGateOverlay.VerticalGestureResult.BLOCK;
+        }
+        int action = deltaY < 0f
+                ? AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+                : AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD;
+        // Never traverse Instagram's tree from the input callback. Share sheets can contain
+        // hundreds of contacts, and keeping MotionEvent dispatch open while walking that tree can
+        // trigger Android's five-second input ANR. Consume the gesture now and scroll the known
+        // foreground list after input dispatch has returned.
+        handler.post(() -> performModalScroll(action));
+        return GestureGateOverlay.VerticalGestureResult.HANDLED;
+    }
+
+    private void performModalScroll(int action) {
         AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null) {
-            return false;
+        if (root == null || root.getPackageName() == null) {
+            if (root != null) {
+                root.recycle();
+            }
+            return;
         }
         try {
-            CharSequence packageName = root.getPackageName();
-            if (packageName == null || !InstagramProtectionModule.PACKAGE_NAME.contentEquals(
-                    packageName)) {
-                return false;
+            ProtectedAppModule module = appRegistry.find(root.getPackageName().toString());
+            if (module != null) {
+                module.performModalScroll(root, action);
             }
-            return performDeepestClick(root, Math.round(x), Math.round(y));
         } finally {
             root.recycle();
         }
     }
 
-    private boolean performDeepestClick(AccessibilityNodeInfo node, int x, int y) {
+    @Override
+    public GestureGateOverlay.TapResult onTap(float x, float y) {
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) {
+            return GestureGateOverlay.TapResult.NOT_HANDLED;
+        }
+        try {
+            CharSequence packageName = root.getPackageName();
+            ProtectedAppModule module = packageName == null
+                    ? null
+                    : appRegistry.find(packageName.toString());
+            if (module == null) {
+                return GestureGateOverlay.TapResult.NOT_HANDLED;
+            }
+            NodeTapResult result = performDeepestTap(
+                    module,
+                    root,
+                    Math.round(x),
+                    Math.round(y));
+            if (result == NodeTapResult.MODAL_HANDLED) {
+                return GestureGateOverlay.TapResult.OPENS_MODAL;
+            }
+            return GestureGateOverlay.TapResult.NOT_HANDLED;
+        } finally {
+            root.recycle();
+        }
+    }
+
+    @Override
+    public void onForwardedGestureFinished() {
+        // A long press can show and dismiss a transient Instagram playback surface without a
+        // final accessibility event. Reinspect independently so the protected viewer can never
+        // remain fail-open after native tap/hold handling finishes.
+        handler.postDelayed(this::inspectCurrentWindow, 25L);
+        handler.postDelayed(this::inspectCurrentWindow, 100L);
+        handler.postDelayed(this::inspectCurrentWindow, 250L);
+    }
+
+    private NodeTapResult performDeepestTap(
+            ProtectedAppModule module,
+            AccessibilityNodeInfo node,
+            int x,
+            int y) {
         Rect bounds = new Rect();
         node.getBoundsInScreen(bounds);
         if (!bounds.contains(x, y)) {
-            return false;
+            return NodeTapResult.NO_TARGET;
         }
         for (int index = node.getChildCount() - 1; index >= 0; index--) {
             AccessibilityNodeInfo child = node.getChild(index);
@@ -172,20 +259,49 @@ public final class NoDoomAccessibilityService extends AccessibilityService
                 continue;
             }
             try {
-                if (performDeepestClick(child, x, y)) {
-                    return true;
+                NodeTapResult result = performDeepestTap(module, child, x, y);
+                if (result != NodeTapResult.NO_TARGET) {
+                    return result;
                 }
             } finally {
                 child.recycle();
             }
         }
-        return node.isClickable()
-                && node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+        if (!node.isClickable()) {
+            return NodeTapResult.NO_TARGET;
+        }
+        if (!module.opensModal(node.getText(), node.getContentDescription())) {
+            return NodeTapResult.NATIVE_GESTURE;
+        }
+
+        boolean wasBehindModal = protectedViewerBehindModal;
+        protectedViewerBehindModal = protectedViewerBehindModal
+                || currentScreenIsProtectedViewer
+                || explicitInfiniteFeedSession;
+        modalLaunchPending = true;
+        modalLaunchDeadlineElapsed = SystemClock.elapsedRealtime()
+                + MODAL_LAUNCH_TIMEOUT_MILLIS;
+        if (!node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+            modalLaunchPending = false;
+            modalLaunchDeadlineElapsed = 0L;
+            protectedViewerBehindModal = wasBehindModal;
+            return NodeTapResult.NATIVE_GESTURE;
+        }
+        scheduleModalInspections();
+        return NodeTapResult.MODAL_HANDLED;
+    }
+
+    private void scheduleModalInspections() {
+        handler.postDelayed(this::inspectCurrentWindow, 40L);
+        handler.postDelayed(this::inspectCurrentWindow, 120L);
+        handler.postDelayed(this::inspectCurrentWindow, 300L);
+        handler.postDelayed(this::inspectCurrentWindow, 650L);
+        handler.postDelayed(this::inspectCurrentWindow, MODAL_LAUNCH_TIMEOUT_MILLIS);
     }
 
     @Override
     public boolean shouldRestoreGate() {
-        if (currentModule == null || stateStore == null) {
+        if (currentModule == null || stateStore == null || modalLaunchPending) {
             return false;
         }
         AccessibilityNodeInfo root = getRootInActiveWindow();
@@ -196,11 +312,14 @@ public final class NoDoomAccessibilityService extends AccessibilityService
             String activePackage = root.getPackageName() == null
                     ? ""
                     : root.getPackageName().toString();
+            boolean protectedSurface = currentScreenIsProtectedViewer
+                    || protectedViewerBehindModal
+                    || modalLaunchPending;
             return WindowSafetyPolicy.canGate(
                     activePackage,
                     currentModule.packageName(),
                     systemUiObscuring,
-                    currentScreenIsProtectedViewer,
+                    protectedSurface,
                     stateStore.get().mode.isProtected());
         } finally {
             root.recycle();
@@ -267,6 +386,59 @@ public final class NoDoomAccessibilityService extends AccessibilityService
                 displayBounds.height());
         try {
             long now = SystemClock.elapsedRealtime();
+            if (modalLaunchPending) {
+                if (detection.surface == ProtectedAppModule.Surface.MODAL) {
+                    modalLaunchPending = false;
+                    modalLaunchDeadlineElapsed = 0L;
+                } else if (now < modalLaunchDeadlineElapsed) {
+                    return;
+                } else {
+                    modalLaunchPending = false;
+                    modalLaunchDeadlineElapsed = 0L;
+                }
+            }
+
+            if (detection.surface == ProtectedAppModule.Surface.MODAL) {
+                modalSurfaceActive = true;
+                protectedViewerBehindModal = protectedViewerBehindModal
+                        || currentScreenIsProtectedViewer
+                        || explicitInfiniteFeedSession
+                        || detection.strongViewerSignature;
+                clearViewerCandidate();
+                currentScreenIsProtectedViewer = false;
+                viewerExitGeneration++;
+                // Cover the whole app surface while the sheet is open. Instagram's share action
+                // row can resemble bottom navigation; clipping at that false boundary would leave
+                // a small path for a closing-sheet swipe to reach the Reel underneath.
+                showGestureGate(root, 0);
+                scheduleModalWatchdog();
+                return;
+            }
+            modalSurfaceActive = false;
+
+            if (ReelControlPolicy.shouldProtectDuringModalReturn(
+                    detection.otherNavigationSelected,
+                    now,
+                    modalReturnGuardUntilElapsed)) {
+                enterProtectedViewer(module, root, detection.nativeNavigationTop);
+                return;
+            }
+            if (modalReturnGuardUntilElapsed > 0L && now >= modalReturnGuardUntilElapsed) {
+                modalReturnGuardUntilElapsed = 0L;
+            }
+
+            if (ReelControlPolicy.shouldRestoreAfterModal(
+                    protectedViewerBehindModal,
+                    detection.otherNavigationSelected)) {
+                // Instagram can briefly omit its selected-Reels state while a full-screen sheet
+                // closes, including the independent viewer signature itself. The modal was
+                // launched from a protected viewer and no other navigation target is selected,
+                // so fail closed before that transient ordinary state can clear the session.
+                modalReturnGuardUntilElapsed = now + MODAL_RETURN_GUARD_MILLIS;
+                enterProtectedViewer(module, root, detection.nativeNavigationTop);
+                return;
+            }
+
             if (InfiniteFeedSessionPolicy.shouldClear(
                     explicitInfiniteFeedSession,
                     now - explicitInfiniteFeedStartedElapsed,
@@ -284,21 +456,15 @@ public final class NoDoomAccessibilityService extends AccessibilityService
                 return;
             }
             if (detection.surface == ProtectedAppModule.Surface.SINGLE_ITEM_VIEWER) {
-                if (currentScreenIsProtectedViewer || explicitInfiniteFeedSession) {
+                if (currentScreenIsProtectedViewer
+                        || explicitInfiniteFeedSession
+                        || protectedViewerBehindModal) {
                     enterProtectedViewer(module, root, detection.nativeNavigationTop);
                 } else {
                     confirmViewerCandidate(module, root, detection.nativeNavigationTop);
                 }
                 return;
             }
-            if (detection.surface == ProtectedAppModule.Surface.MODAL) {
-                clearViewerCandidate();
-                currentScreenIsProtectedViewer = false;
-                viewerExitGeneration++;
-                gestureGate.hide();
-                return;
-            }
-
             // Some Instagram versions do not expose a selected state on the Reels navigation item.
             // A click-established Reels session plus the independent full-screen signature is safe.
             if (explicitInfiniteFeedSession
@@ -349,7 +515,16 @@ public final class NoDoomAccessibilityService extends AccessibilityService
         viewerExitGeneration++;
         currentModule = module;
         currentScreenIsProtectedViewer = true;
+        modalSurfaceActive = false;
+        modalLaunchPending = false;
+        modalLaunchDeadlineElapsed = 0L;
+        protectedViewerBehindModal = false;
+        cancelModalWatchdog();
         recordViewerIfNeeded(module);
+        showGestureGate(root, nativeNavigationTop);
+    }
+
+    private void showGestureGate(AccessibilityNodeInfo root, int nativeNavigationTop) {
         Rect appBounds = new Rect();
         root.getBoundsInScreen(appBounds);
         gestureGate.show(appBounds, nativeNavigationTop);
@@ -375,6 +550,12 @@ public final class NoDoomAccessibilityService extends AccessibilityService
         viewerExitGeneration++;
         clearViewerCandidate();
         currentScreenIsProtectedViewer = false;
+        modalSurfaceActive = false;
+        modalLaunchPending = false;
+        modalLaunchDeadlineElapsed = 0L;
+        protectedViewerBehindModal = false;
+        modalReturnGuardUntilElapsed = 0L;
+        cancelModalWatchdog();
         if (clearInfiniteFeedSession) {
             clearInfiniteFeedSession();
         }
@@ -383,8 +564,10 @@ public final class NoDoomAccessibilityService extends AccessibilityService
 
     private void suspendGestureGate() {
         viewerExitGeneration++;
+        cancelProtectedInspection();
         clearViewerCandidate();
         currentScreenIsProtectedViewer = false;
+        modalSurfaceActive = false;
         if (gestureGate != null) {
             gestureGate.hide();
         }
@@ -393,6 +576,11 @@ public final class NoDoomAccessibilityService extends AccessibilityService
     private void resetProtectionSession(boolean clearInfiniteFeedSession) {
         suspendGestureGate();
         currentModule = null;
+        modalLaunchPending = false;
+        modalLaunchDeadlineElapsed = 0L;
+        protectedViewerBehindModal = false;
+        modalReturnGuardUntilElapsed = 0L;
+        cancelModalWatchdog();
         if (clearInfiniteFeedSession) {
             clearInfiniteFeedSession();
         }
@@ -413,6 +601,48 @@ public final class NoDoomAccessibilityService extends AccessibilityService
     private void clearViewerCandidate() {
         viewerCandidatePackage = null;
         viewerCandidateSinceElapsed = 0L;
+    }
+
+    private void scheduleModalWatchdog() {
+        if (modalWatchdogScheduled) {
+            return;
+        }
+        modalWatchdogScheduled = true;
+        int generation = modalWatchGeneration;
+        handler.postDelayed(() -> {
+            if (generation != modalWatchGeneration) {
+                return;
+            }
+            modalWatchdogScheduled = false;
+            if (protectedViewerBehindModal && !currentScreenIsProtectedViewer) {
+                inspectCurrentWindow();
+            }
+        }, MODAL_WATCHDOG_MILLIS);
+    }
+
+    private void scheduleProtectedInspection(long delayMillis) {
+        if (protectedInspectionScheduled) {
+            return;
+        }
+        protectedInspectionScheduled = true;
+        int generation = protectedInspectionGeneration;
+        handler.postDelayed(() -> {
+            if (generation != protectedInspectionGeneration) {
+                return;
+            }
+            protectedInspectionScheduled = false;
+            inspectCurrentWindow();
+        }, delayMillis);
+    }
+
+    private void cancelProtectedInspection() {
+        protectedInspectionGeneration++;
+        protectedInspectionScheduled = false;
+    }
+
+    private void cancelModalWatchdog() {
+        modalWatchGeneration++;
+        modalWatchdogScheduled = false;
     }
 
     /** @return true when the click starts a transition and the old window must not be inspected. */
@@ -512,5 +742,11 @@ public final class NoDoomAccessibilityService extends AccessibilityService
         } catch (PackageManager.NameNotFoundException notInstalled) {
             return "unknown";
         }
+    }
+
+    private enum NodeTapResult {
+        NO_TARGET,
+        NATIVE_GESTURE,
+        MODAL_HANDLED
     }
 }

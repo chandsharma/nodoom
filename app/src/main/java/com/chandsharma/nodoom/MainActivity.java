@@ -398,7 +398,7 @@ public final class MainActivity extends Activity {
         card.addView(kicker("ABOUT", color(com.chandsharma.nodoom.R.color.muted)));
         card.addView(heading("Private by construction"));
         card.addView(body(
-                "No Doom 0.4.0-alpha.4 works with the official Play Store Instagram app. It has no Internet permission, no analytics, no account and no root requirement."));
+                "No Doom 0.5.0-alpha.5 works with the official Play Store Instagram app. It has no Internet permission, no analytics, no account and no root requirement."));
         card.addView(note(
                 "Accessibility can see Instagram and the small set of Android system screens needed for self-protection. Nothing it sees is saved or transmitted."));
         content.addView(card);

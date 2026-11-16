@@ -15,28 +15,30 @@ import java.util.Date;
 final class NotificationController {
     private static final String CHANNEL_STATUS = "protection_status";
     private static final String CHANNEL_ALERTS = "unlock_alerts";
-    private static final String CHANNEL_GUARD = "self_protection";
 
     private static final int ID_COUNTDOWN = 201;
     private static final int ID_WINDOW = 202;
     private static final int ID_MISSED = 203;
-    private static final int ID_GUARD = 204;
+    private static final int LEGACY_ID_GUARD = 204;
     private static final int ID_COMPATIBILITY = 205;
 
     private final Context context;
     private final NotificationManager manager;
+    private final UserSettings settings;
 
     NotificationController(Context context) {
         this.context = context.getApplicationContext();
         this.manager = this.context.getSystemService(NotificationManager.class);
+        this.settings = new UserSettings(this.context);
         createChannels();
+        manager.cancel(LEGACY_ID_GUARD);
+        manager.deleteNotificationChannel("self_protection");
     }
 
     void syncStateNotification(ProtectionSnapshot snapshot) {
-        if (!canNotify()) {
-            return;
-        }
-        if (snapshot.mode != ProtectionMode.COUNTDOWN) {
+        if (!canNotify()
+                || !settings.countdownStatusEnabled()
+                || snapshot.mode != ProtectionMode.COUNTDOWN) {
             manager.cancel(ID_COUNTDOWN);
             return;
         }
@@ -57,7 +59,8 @@ final class NotificationController {
     }
 
     void showUnlockWindow(ProtectionSnapshot snapshot) {
-        if (!canNotify()) {
+        if (!canNotify() || !settings.unlockAlertEnabled()) {
+            manager.cancel(ID_WINDOW);
             return;
         }
         manager.cancel(ID_COUNTDOWN);
@@ -73,7 +76,8 @@ final class NotificationController {
     }
 
     void showWindowMissed() {
-        if (!canNotify()) {
+        if (!canNotify() || !settings.countdownStatusEnabled()) {
+            manager.cancel(ID_MISSED);
             return;
         }
         manager.cancel(ID_WINDOW);
@@ -88,27 +92,8 @@ final class NotificationController {
         manager.notify(ID_MISSED, notification);
     }
 
-    void showGuardedScreenMessage() {
-        if (!canNotify()) {
-            return;
-        }
-        Notification notification = new Notification.Builder(context, CHANNEL_GUARD)
-                .setSmallIcon(com.chandsharma.nodoom.R.drawable.ic_notification)
-                .setContentTitle("No Doom is protecting you")
-                .setContentText("To turn it off, request it in No Doom and wait 60 minutes.")
-                .setContentIntent(openAppIntent())
-                .setAutoCancel(true)
-                .setCategory(Notification.CATEGORY_RECOMMENDATION)
-                .addAction(new Notification.Action.Builder(
-                        null,
-                        "Open No Doom",
-                        openAppIntent()).build())
-                .build();
-        manager.notify(ID_GUARD, notification);
-    }
-
     void showInstagramCompatibilityWarning(String versionName) {
-        if (!canNotify()) {
+        if (!canNotify() || !settings.compatibilityAlertEnabled()) {
             return;
         }
         Notification notification = new Notification.Builder(context, CHANNEL_STATUS)
@@ -137,15 +122,21 @@ final class NotificationController {
                 NotificationManager.IMPORTANCE_DEFAULT);
         alerts.setDescription("Alerts when the 10-minute unlock window opens");
 
-        NotificationChannel guard = new NotificationChannel(
-                CHANNEL_GUARD,
-                "Self-protection",
-                NotificationManager.IMPORTANCE_HIGH);
-        guard.setDescription("Shown only after a protected Settings or uninstall screen is closed");
-
         manager.createNotificationChannel(status);
         manager.createNotificationChannel(alerts);
-        manager.createNotificationChannel(guard);
+    }
+
+    void refreshUserSettings() {
+        if (!settings.countdownStatusEnabled()) {
+            manager.cancel(ID_COUNTDOWN);
+            manager.cancel(ID_MISSED);
+        }
+        if (!settings.unlockAlertEnabled()) {
+            manager.cancel(ID_WINDOW);
+        }
+        if (!settings.compatibilityAlertEnabled()) {
+            manager.cancel(ID_COMPATIBILITY);
+        }
     }
 
     private PendingIntent openAppIntent() {

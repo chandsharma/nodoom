@@ -6,7 +6,8 @@
     android:canPerformGestures="true"
     android:canRetrieveWindowContent="true"
     android:description="@string/accessibility_description"
+    android:isAccessibilityTool="false"
     android:notificationTimeout="40"
-    android:packageNames="com.instagram.android,com.android.settings,com.google.android.permissioncontroller,com.android.vending,com.google.android.apps.nexuslauncher,com.google.android.apps.wellbeing,com.google.android.settings.intelligence"
+    android:packageNames="com.instagram.android,com.android.settings,com.google.android.permissioncontroller"
     android:settingsActivity="com.chandsharma.nodoom.MainActivity" />
 

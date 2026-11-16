@@ -13,7 +13,7 @@ No Doom is designed so that it cannot send data to its developer:
 The Accessibility service processes the live UI structure of:
 
 1. The official Instagram package, to distinguish a Reel viewer, Reels tab and foreground comment/share sheets.
-2. Specific Pixel system packages, only to recognise destructive screens for No Doom itself while protection is ON.
+2. Android Settings and Permission Controller, only to recognise No Doom's exact device-admin removal or uninstall confirmation while its removal timer is not ready.
 
-Persisted data is limited to the protection state, elapsed-time deadlines, setup completion, last recognition timestamps, Instagram version and an interruption timestamp. Clearing app data removes it; missing data fails safe to protection ON.
+Persisted data is limited to protection/removal state, elapsed-time deadlines, notification choices, setup completion, last recognition timestamps, Instagram version and an interruption timestamp. Clearing app data removes it; missing protection data fails safe to protection ON.
 

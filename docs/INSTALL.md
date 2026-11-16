@@ -16,6 +16,18 @@ No Doom is not on Google Play. Install only an APK from this repository's Releas
 3. If Play Protect asks to scan, let it scan. Do not disable Play Protect globally.
 4. Open **No Doom** and read the welcome screen.
 
+### If Play Protect blocks the installation
+
+In selected markets, Play Protect automatically blocks apps installed from a browser or file manager when they declare an Accessibility service. Signing and a clean malware scan do not bypass that distribution rule. A Play Protect appeal for the owner-signed package was submitted on 16 November 2026.
+
+Do not turn off Play Protect. For owner/developer testing, Android Debug Bridge is the supported temporary path:
+
+```bash
+adb install -r NoDoom.apk
+```
+
+The public GitHub APK remains the authoritative artifact; ADB changes only the installation route.
+
 ## Enable the required controls
 
 No Doom walks through each item and displays its live status.
@@ -34,7 +46,7 @@ Accessibility is powerful. The open-source app has no Internet permission and is
 
 ### Notifications
 
-Allow notifications so the phone can announce the 10-minute unlock window. The countdown notification is silent; there is no permanent “running” notification while protection is ON.
+Allow notifications so the phone can announce the 10-minute unlock window. There is no permanent “running” or “protecting you” notification. **No Doom → Settings** controls the unlock alert, optional silent countdown status and optional Instagram-change warning.
 
 ### Exact timer
 
@@ -42,14 +54,14 @@ Allow **Alarms & reminders**. This schedules exactly two local events—the star
 
 ### Uninstall barrier
 
-Activate No Doom as a Device Administrator. No Doom requests no device-admin policies and cannot wipe, lock or change the phone password. The activation only adds friction to removal while protection is active.
+Activate No Doom as a Device Administrator. No Doom requests no device-admin policies and cannot wipe, lock or change the phone password. To remove it later, open **No Doom → Settings → Remove app**, complete the 10-minute wait, then use Android's normal uninstall confirmation.
 
 ## Live check
 
 1. In No Doom, tap **Open Instagram for live check**.
 2. Open a Reel from Home, a profile or Explore. Try to swipe vertically five times. The starting Reel must remain.
 3. Leave the Reel and verify that Home/Explore/Profile still scroll normally.
-4. Tap Instagram's Reels tab. It must be covered briefly and return to Home.
+4. Tap Instagram's Reels tab. The first Reel may play, but five vertical swipes must leave that same Reel visible.
 5. Return to No Doom. Both recognition rows must show timestamps.
 
 If either check fails, do not treat that build as protection. Record the Pixel's Android version and Instagram version in a compatibility issue without including private screen content.

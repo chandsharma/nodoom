@@ -10,14 +10,15 @@ The manifest contains no Internet permission. Accessibility access is package-sc
 
 | Component | Responsibility |
 |---|---|
-| `MainActivity` | First-run setup, health check and the four protection states |
+| `MainActivity` | Guided four-step setup, separate live check and the four protection states |
+| `SettingsActivity` | Notification controls and the deliberate removal flow |
 | `ProtectionStateStore` | Fail-safe ON/OFF/countdown/window state using monotonic elapsed time |
+| `RemovalStateStore` | Ten-minute wait and ten-minute removal window using monotonic time |
 | `AlarmScheduler` | Two exact elapsed-time transitions; no polling or background ticking |
 | `NoDoomAccessibilityService` | Event router; acts only while protected |
 | `InstagramUiClassifier` | Centralised, version-maintainable screen recognition |
 | `GestureGateOverlay` | Transparent Accessibility overlay active only in a recognised Reel viewer |
-| `BlockCoverOverlay` | Briefly covers the Reels tab while Home is selected |
-| `SelfProtectionGuard` | Closes No Doom's own dangerous Settings/uninstall routes |
+| `SelfProtectionGuard` | Narrowly guards only uninstall/device-admin removal screens |
 | `RecognitionStore` | Stores timestamps and Instagram version only—never screen content |
 
 ## Reel recognition
@@ -27,7 +28,7 @@ The classifier combines:
 1. Foreground package identity.
 2. A vertical rail of small clickable controls on the right.
 3. A large scroll surface or custom pager geometry.
-4. Bottom-navigation selection state for the Reels tab.
+4. Bottom-navigation presence and selection state, preventing inline feed Reels from being mistaken for a full-screen viewer.
 5. Detection of foreground sheets so comments and share lists remain scrollable.
 
 No single username, caption, like count or private message is used. Language tokens are limited to bottom navigation and geometry remains the fallback. The M0 device pass must calibrate these signals against the current Instagram build.
@@ -50,7 +51,7 @@ Missing, corrupt or contradictory state always resolves to ON.
 
 ## Self-protection boundary
 
-While protected, the Accessibility service immediately leaves screens that specifically combine No Doom's identity with a destructive action. It does not block general Settings pages or other accessibility services. Device Administrator adds an uninstall barrier but has no lock, wipe or password policy.
+Device Administrator adds an uninstall barrier but has no lock, wipe or password policy. Settings provides a visible 10-minute removal wait followed by a 10-minute window; when ready, No Doom deactivates only its own administrator and opens Android's normal uninstall confirmation. The Accessibility guard is intentionally narrow and silent so ordinary App info, launcher and Settings screens are not closed by broad text matching.
 
 Android still allows bypass with a computer, safe mode or factory reset. No Doom is an impulse barrier, not device-owner management software.
 

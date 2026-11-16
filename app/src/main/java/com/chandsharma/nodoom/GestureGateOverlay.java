@@ -143,11 +143,11 @@ final class GestureGateOverlay {
 
     private void finishForwarding() {
         forwarding = false;
-        handler.postDelayed(() -> {
+        handler.post(() -> {
             if (callback.shouldRestoreGate()) {
                 show();
             }
-        }, 35L);
+        });
     }
 
     private final class GateView extends View {

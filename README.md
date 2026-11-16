@@ -2,15 +2,15 @@
 
 **Use the official Instagram app—without falling into the infinite Reels feed.**
 
-No Doom is an open-source Android companion app that lets you watch the Reel you intentionally opened, then blocks the swipe to the next Reel. It also redirects Instagram's Reels tab back to Home.
+No Doom is an open-source Android companion app that lets you watch one full-screen Reel, then blocks the swipe to the next Reel. Home, Explore, profiles and the official Instagram app stay intact.
 
 ## Download for Android
 
 ### [⬇️ Download No Doom APK](https://github.com/chandsharma/nodoom/releases/latest/download/NoDoom.apk)
 
-**Current version:** `0.1.0-alpha.1` · **Requires:** Android 14 or newer
+**Current version:** `0.2.0-alpha.2` · **Requires:** Android 14 or newer
 
-[View release notes and checksums](https://github.com/chandsharma/nodoom/releases/latest) · [Read the installation guide](docs/INSTALL.md)
+[View release notes and checksums](https://github.com/chandsharma/nodoom/releases/latest) · [Changelog](CHANGELOG.md) · [Read the installation guide](docs/INSTALL.md)
 
 This is an owner-signed alpha release for Pixel 9 Pro feasibility testing. Complete the in-app live check after installation before relying on its protection.
 
@@ -21,7 +21,7 @@ This is an owner-signed alpha release for Pixel 9 Pro feasibility testing. Compl
 - A 60-minute cooling-off period plus a 10-minute confirmation window makes impulsive disabling harder.
 
 > [!IMPORTANT]
-> No Doom is a real daily-use app under active development, not a tutorial project. The current `0.1.0-alpha.1` code is awaiting the required M0 feasibility pass on the owner's Pixel 9 Pro and current Instagram. Do not rely on an alpha build for protection until the device test report is published.
+> No Doom is a real daily-use app under active development, not a tutorial project. Version `0.1.0-alpha.1` failed its first Pixel test; `0.2.0-alpha.2` contains the resulting classifier, setup and noise fixes and awaits physical retesting. Do not rely on an alpha build until its in-app live check passes on your phone.
 
 ## What it changes
 
@@ -30,7 +30,7 @@ This is an owner-signed alpha release for Pixel 9 Pro feasibility testing. Compl
 | Home, Explore, profiles, DMs, stories, comments | Unchanged; scrolling works normally |
 | A Reel you intentionally open | Plays normally; controls remain available |
 | Swipe to another Reel | Blocked |
-| Instagram Reels tab | Covered and redirected to Home |
+| Instagram Reels tab | Its first Reel can play; vertical swipes cannot advance |
 | Other apps | Never touched |
 
 No Doom uses Android Accessibility to recognise a full-screen Reel and intercept only the vertical gesture that would advance it. The recognition rules live in one file, [`InstagramUiClassifier.java`](app/src/main/java/com/chandsharma/nodoom/InstagramUiClassifier.java), so Instagram compatibility can be repaired quickly after UI changes.
@@ -43,7 +43,7 @@ The release manifest intentionally has **no `INTERNET` permission**. Screen stru
 
 ## Install
 
-There is no Play Store listing. Owner-signed APKs are published on this repository's [GitHub Releases](https://github.com/chandsharma/nodoom/releases), together with SHA-256 checksums. Follow the [plain-language installation guide](docs/INSTALL.md); Android requires an explicit “Allow restricted settings” step before a sideloaded accessibility service can be enabled.
+There is no Play Store listing. Owner-signed APKs are published on this repository's [GitHub Releases](https://github.com/chandsharma/nodoom/releases), together with SHA-256 checksums. Follow the [plain-language installation guide](docs/INSTALL.md). Google Play Protect may block a browser/file-manager installation of an Accessibility app in selected markets even when the APK is clean and correctly signed; never disable Play Protect to work around it.
 
 Never install an APK posted in an issue, discussion, comment, mirror, or chat. Use only this repository's Releases page and verify its checksum.
 

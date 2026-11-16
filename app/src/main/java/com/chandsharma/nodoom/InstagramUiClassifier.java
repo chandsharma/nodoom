@@ -70,25 +70,23 @@ final class InstagramUiClassifier {
             AccessibilityNodeInfo home = findByTokens(bottomButtons, HOME_TOKENS);
             AccessibilityNodeInfo reels = findByTokens(bottomButtons, REELS_TOKENS);
             Rect fallbackHome = leftmostBounds(bottomButtons);
-
-            if (reels != null && isSelected(reels)) {
-                return new Result(
-                        Screen.REELS_TAB,
-                        copy(home),
+            boolean reelsSelected = reels != null && isSelected(reels);
+            boolean hasBottomNavigation = hasBottomNavigation(
+                    bottomButtons, screenWidth, screenHeight);
+            int railCount = verticalActionRailCount(nodes, screenWidth, screenHeight);
+            boolean viewerSurface = hasFullscreenScrollSurface(nodes, screenWidth, screenHeight);
+            boolean bottomSheet = hasForegroundBottomSheet(nodes, screenWidth, screenHeight);
+            Screen screen = decide(
+                    reelsSelected,
+                    hasBottomNavigation,
+                    railCount,
+                    viewerSurface,
+                    bottomSheet);
+            if (screen == Screen.REELS_TAB) {
+                return new Result(screen, copy(home),
                         fallbackHome == null ? null : new Rect(fallbackHome));
             }
-
-            int railCount = verticalActionRailCount(nodes, screenWidth, screenHeight);
-            boolean reelGeometry = railCount >= 3
-                    && hasFullscreenScrollSurface(nodes, screenWidth, screenHeight);
-            if (!reelGeometry) {
-                return new Result(Screen.OTHER, null, null);
-            }
-
-            if (hasForegroundBottomSheet(nodes, screenWidth, screenHeight)) {
-                return new Result(Screen.REEL_MODAL, null, null);
-            }
-            return new Result(Screen.REEL_VIEWER, null, null);
+            return new Result(screen, null, null);
         } finally {
             for (AccessibilityNodeInfo node : nodes) {
                 if (node != root) {
@@ -96,6 +94,54 @@ final class InstagramUiClassifier {
                 }
             }
         }
+    }
+
+    static Screen decide(
+            boolean reelsSelected,
+            boolean hasBottomNavigation,
+            int verticalRailCount,
+            boolean hasViewerSurface,
+            boolean hasBottomSheet) {
+        if (reelsSelected) {
+            return Screen.REELS_TAB;
+        }
+        // Home, Explore and profile screens keep their bottom navigation. Even an inline Reel can
+        // expose a right-side action rail, so navigation presence wins over that weaker signal.
+        if (hasBottomNavigation) {
+            return Screen.OTHER;
+        }
+        if (verticalRailCount < 3) {
+            return Screen.OTHER;
+        }
+        if (hasBottomSheet) {
+            return Screen.REEL_MODAL;
+        }
+        // Some Instagram builds do not expose their custom pager as scrollable. A full action rail
+        // without bottom navigation remains the fallback full-screen viewer signature.
+        return hasViewerSurface || verticalRailCount >= 3
+                ? Screen.REEL_VIEWER
+                : Screen.OTHER;
+    }
+
+    boolean isReelsNavigationNode(AccessibilityNodeInfo node, int screenHeight) {
+        if (node == null || screenHeight <= 0) {
+            return false;
+        }
+        Rect bounds = new Rect();
+        node.getBoundsInScreen(bounds);
+        if (bounds.isEmpty() || bounds.centerY() < screenHeight * 0.72f) {
+            return false;
+        }
+        String label = normalizedLabel(node);
+        for (String token : REELS_TOKENS) {
+            if (label.equals(token)
+                    || label.startsWith(token + " ")
+                    || label.endsWith(" " + token)
+                    || label.contains(" " + token + " ")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<AccessibilityNodeInfo> collect(AccessibilityNodeInfo root) {
@@ -145,6 +191,29 @@ final class InstagramUiClassifier {
             return bounds.centerX();
         }));
         return result;
+    }
+
+    private boolean hasBottomNavigation(
+            List<AccessibilityNodeInfo> buttons,
+            int width,
+            int height) {
+        if (buttons.size() < 3 || buttons.size() > 7) {
+            return false;
+        }
+        int minX = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int maxY = Integer.MIN_VALUE;
+        for (AccessibilityNodeInfo button : buttons) {
+            Rect bounds = new Rect();
+            button.getBoundsInScreen(bounds);
+            minX = Math.min(minX, bounds.centerX());
+            maxX = Math.max(maxX, bounds.centerX());
+            minY = Math.min(minY, bounds.centerY());
+            maxY = Math.max(maxY, bounds.centerY());
+        }
+        return maxX - minX >= width * 0.55f
+                && maxY - minY <= height * 0.09f;
     }
 
     private AccessibilityNodeInfo findByTokens(
@@ -255,9 +324,7 @@ final class InstagramUiClassifier {
                 return true;
             }
         }
-        // Some Instagram builds expose the action rail but hide the custom pager's scroll role.
-        // A near-full-screen root with the vertical rail remains a high-confidence viewer signal.
-        return true;
+        return false;
     }
 
     private boolean hasForegroundBottomSheet(

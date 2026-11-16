@@ -8,5 +8,6 @@
     <color name="protected_state">#FF196B4B</color>
     <color name="warning">#FFC57916</color>
     <color name="divider">#FFE8DDD4</color>
+    <color name="icon_background">#FFF4E9</color>
 </resources>
 

@@ -1,6 +1,6 @@
 # M0 feasibility report
 
-Status: **Awaiting physical Pixel 9 Pro validation**
+Status: **0.1 failed initial Pixel validation; 0.2 awaits focused retest**
 
 An APK compiling successfully is not proof that another app's current accessibility tree and touch behaviour meet the product requirements. M0 remains a hard gate.
 
@@ -8,12 +8,12 @@ An APK compiling successfully is not proof that another app's current accessibil
 
 | Item | Value |
 |---|---|
-| Date | Not tested |
+| Date | 16 Nov 2026 initial test |
 | Device | Pixel 9 Pro |
 | Android version/build | Not recorded |
 | Navigation mode | Not recorded |
-| Instagram version | Not recorded |
-| No Doom version | 0.1.0-alpha.1 |
+| Instagram version | 454.0.0.54.77 |
+| No Doom version | 0.1.0-alpha.1 tested; 0.2.0-alpha.2 pending |
 
 ## Candidate A: suppress the swipe
 
@@ -23,7 +23,7 @@ Expected advantage: the next Reel is never requested and the starting Reel keeps
 
 Risk to validate: tap-and-hold is replayed after gesture classification, which may not preserve Instagram's exact pause timing. Multi-touch and UI controls must also pass R-03.
 
-Result: Not tested. Screen recording: Not captured.
+Initial result on 0.1: **Fail**. Inline Home Reels sometimes matched the viewer signature, while genuine full-screen/Reels-tab screens were recognised too late or inconsistently. Version 0.2 makes bottom-navigation presence a strong feed/profile signal, gates immediately after a Reels-tab click, debounces transient tree changes and removes all block toasts. Screen recording: Not captured.
 
 ## Candidate B: bounce back
 
@@ -33,7 +33,7 @@ Result: Not tested. Screen recording: Not captured.
 
 ## Entry-point matrix
 
-All entry points remain **not tested** until observed on the physical phone: Home, one-to-one DM, group DM, story share, Explore, own/other profile, search, audio, hashtag, saved collection, notification, external link and a Reel opened from another Reel context.
+Home and profile entry points were sampled on 0.1 but failed consistency requirements. All entry points must be rerun on 0.2: Home, one-to-one DM, group DM, story share, Explore, own/other profile, search, audio, hashtag, saved collection, notification, external link and a Reel opened from another Reel context.
 
 ## Go/no-go decision
 

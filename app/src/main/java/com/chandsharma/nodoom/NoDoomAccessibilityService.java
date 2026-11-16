@@ -1,11 +1,9 @@
 package com.chandsharma.nodoom;
 
 import android.accessibilityservice.AccessibilityService;
-import android.accessibilityservice.GestureDescription;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.graphics.Path;
 import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Looper;
@@ -13,37 +11,37 @@ import android.os.SystemClock;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
-import android.widget.Toast;
 
 public final class NoDoomAccessibilityService extends AccessibilityService
         implements GestureGateOverlay.Callback {
     private static final String INSTAGRAM_PACKAGE = "com.instagram.android";
-    private static final long HINT_COOLDOWN_MILLIS = 4_000L;
-    private static final long TAB_ACTION_COOLDOWN_MILLIS = 900L;
-    private static final long GUARD_COOLDOWN_MILLIS = 1_500L;
+    private static final long REELS_CLICK_GRACE_MILLIS = 3_000L;
+    private static final long VIEWER_EXIT_DEBOUNCE_MILLIS = 180L;
+    private static final long GUARD_COOLDOWN_MILLIS = 900L;
+    private static final long RECOGNITION_WRITE_COOLDOWN_MILLIS = 5_000L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final InstagramUiClassifier instagramClassifier = new InstagramUiClassifier();
     private final SelfProtectionGuard selfProtectionGuard = new SelfProtectionGuard();
 
     private ProtectionStateStore stateStore;
+    private RemovalStateStore removalStateStore;
     private RecognitionStore recognitionStore;
-    private NotificationController notifications;
     private GestureGateOverlay gestureGate;
-    private BlockCoverOverlay blockCover;
     private boolean currentScreenIsReelViewer;
-    private long lastHintElapsed;
-    private long lastTabActionElapsed;
+    private long pendingReelsTabUntilElapsed;
+    private long lastViewerRecordElapsed;
+    private long lastTabRecordElapsed;
     private long lastGuardElapsed;
+    private int viewerExitGeneration;
 
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
         stateStore = new ProtectionStateStore(this);
+        removalStateStore = new RemovalStateStore(this);
         recognitionStore = new RecognitionStore(this);
-        notifications = new NotificationController(this);
         gestureGate = new GestureGateOverlay(this, this);
-        blockCover = new BlockCoverOverlay(this);
         stateStore.get();
         handler.post(this::inspectCurrentWindow);
     }
@@ -57,20 +55,21 @@ public final class NoDoomAccessibilityService extends AccessibilityService
         if (!state.mode.isProtected()) {
             currentScreenIsReelViewer = false;
             gestureGate.hide();
-            blockCover.hide();
             return;
         }
 
         CharSequence packageValue = event.getPackageName();
         String packageName = packageValue == null ? "" : packageValue.toString();
         if (INSTAGRAM_PACKAGE.equals(packageName)) {
+            trackReelsNavigationClick(event);
             inspectInstagram();
             return;
         }
 
         currentScreenIsReelViewer = false;
+        viewerExitGeneration++;
+        pendingReelsTabUntilElapsed = 0L;
         gestureGate.hide();
-        blockCover.hide();
         guardSystemScreen(packageName);
     }
 
@@ -79,9 +78,6 @@ public final class NoDoomAccessibilityService extends AccessibilityService
         currentScreenIsReelViewer = false;
         if (gestureGate != null) {
             gestureGate.hide();
-        }
-        if (blockCover != null) {
-            blockCover.hide();
         }
     }
 
@@ -96,11 +92,7 @@ public final class NoDoomAccessibilityService extends AccessibilityService
 
     @Override
     public void onVerticalSwipeBlocked() {
-        long now = SystemClock.elapsedRealtime();
-        if (now - lastHintElapsed >= HINT_COOLDOWN_MILLIS) {
-            lastHintElapsed = now;
-            Toast.makeText(this, "Save your brain from Doom", Toast.LENGTH_SHORT).show();
-        }
+        // Intentionally silent. A blocked swipe simply leaves the current Reel in place.
     }
 
     @Override
@@ -137,52 +129,100 @@ public final class NoDoomAccessibilityService extends AccessibilityService
                 displayBounds.height());
         try {
             if (result.screen == InstagramUiClassifier.Screen.REELS_TAB) {
-                blockReelsTab(result, displayBounds);
+                pendingReelsTabUntilElapsed = 0L;
+                recordReelsTabIfNeeded();
+                enterReelViewer(root);
                 return;
             }
             if (result.screen == InstagramUiClassifier.Screen.REEL_VIEWER) {
-                currentScreenIsReelViewer = true;
-                blockCover.hide();
-                recognitionStore.recordViewer(instagramVersion());
-                Rect instagramBounds = new Rect();
-                root.getBoundsInScreen(instagramBounds);
-                gestureGate.show(instagramBounds);
+                enterReelViewer(root);
                 return;
             }
-            currentScreenIsReelViewer = false;
-            gestureGate.hide();
-            blockCover.hide();
+            if (result.screen == InstagramUiClassifier.Screen.REEL_MODAL) {
+                viewerExitGeneration++;
+                currentScreenIsReelViewer = false;
+                gestureGate.hide();
+                return;
+            }
+            if (SystemClock.elapsedRealtime() < pendingReelsTabUntilElapsed) {
+                // Instagram often updates the selected tab state after the destination appears.
+                // Gate immediately after the Reels click so no early swipe can slip through.
+                enterReelViewer(root);
+                return;
+            }
+            scheduleViewerExit();
         } finally {
             result.recycle();
             root.recycle();
         }
     }
 
-    private void blockReelsTab(InstagramUiClassifier.Result result, Rect displayBounds) {
-        currentScreenIsReelViewer = false;
-        gestureGate.hide();
-        blockCover.show();
-        recognitionStore.recordReelsTab(instagramVersion());
+    private void enterReelViewer(AccessibilityNodeInfo root) {
+        viewerExitGeneration++;
+        currentScreenIsReelViewer = true;
+        recordViewerIfNeeded();
+        Rect instagramBounds = new Rect();
+        root.getBoundsInScreen(instagramBounds);
+        gestureGate.show(instagramBounds);
+    }
 
-        long now = SystemClock.elapsedRealtime();
-        if (now - lastTabActionElapsed < TAB_ACTION_COOLDOWN_MILLIS) {
+    private void scheduleViewerExit() {
+        if (!currentScreenIsReelViewer) {
+            gestureGate.hide();
             return;
         }
-        lastTabActionElapsed = now;
-
-        boolean clicked = result.homeNode != null
-                && result.homeNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-        if (!clicked) {
-            Rect target = result.fallbackHomeBounds;
-            float x = target == null ? displayBounds.width() * 0.10f : target.centerX();
-            float y = target == null ? displayBounds.height() * 0.91f : target.centerY();
-            dispatchTap(x, y);
-        }
-        Toast.makeText(this, "Reels tab is off", Toast.LENGTH_SHORT).show();
+        int generation = ++viewerExitGeneration;
         handler.postDelayed(() -> {
-            inspectCurrentWindow();
-            blockCover.hide();
-        }, 320L);
+            if (generation != viewerExitGeneration) {
+                return;
+            }
+            currentScreenIsReelViewer = false;
+            gestureGate.hide();
+        }, VIEWER_EXIT_DEBOUNCE_MILLIS);
+    }
+
+    private void trackReelsNavigationClick(AccessibilityEvent event) {
+        if (event.getEventType() != AccessibilityEvent.TYPE_VIEW_CLICKED) {
+            return;
+        }
+        AccessibilityNodeInfo source = event.getSource();
+        if (source == null) {
+            return;
+        }
+        try {
+            Rect displayBounds = getSystemService(WindowManager.class)
+                    .getCurrentWindowMetrics()
+                    .getBounds();
+            if (!instagramClassifier.isReelsNavigationNode(source, displayBounds.height())) {
+                return;
+            }
+            pendingReelsTabUntilElapsed = SystemClock.elapsedRealtime()
+                    + REELS_CLICK_GRACE_MILLIS;
+            handler.postDelayed(this::inspectCurrentWindow, 25L);
+            handler.postDelayed(this::inspectCurrentWindow, 120L);
+            handler.postDelayed(this::inspectCurrentWindow, 350L);
+            handler.postDelayed(this::inspectCurrentWindow, 750L);
+        } finally {
+            source.recycle();
+        }
+    }
+
+    private void recordViewerIfNeeded() {
+        long now = SystemClock.elapsedRealtime();
+        if (now - lastViewerRecordElapsed < RECOGNITION_WRITE_COOLDOWN_MILLIS) {
+            return;
+        }
+        lastViewerRecordElapsed = now;
+        recognitionStore.recordViewer(instagramVersion());
+    }
+
+    private void recordReelsTabIfNeeded() {
+        long now = SystemClock.elapsedRealtime();
+        if (now - lastTabRecordElapsed < RECOGNITION_WRITE_COOLDOWN_MILLIS) {
+            return;
+        }
+        lastTabRecordElapsed = now;
+        recognitionStore.recordReelsTab(instagramVersion());
     }
 
     private void guardSystemScreen(String packageName) {
@@ -192,7 +232,9 @@ public final class NoDoomAccessibilityService extends AccessibilityService
         }
         AccessibilityNodeInfo root = getRootInActiveWindow();
         try {
-            if (!selfProtectionGuard.shouldClose(packageName, root)) {
+            boolean removalAllowed = removalStateStore != null
+                    && removalStateStore.removalAllowed();
+            if (!selfProtectionGuard.shouldClose(packageName, root, removalAllowed)) {
                 return;
             }
         } finally {
@@ -202,20 +244,6 @@ public final class NoDoomAccessibilityService extends AccessibilityService
         }
         lastGuardElapsed = now;
         performGlobalAction(GLOBAL_ACTION_BACK);
-        Toast.makeText(
-                this,
-                "No Doom is protecting you. Use the 60-minute request inside No Doom.",
-                Toast.LENGTH_LONG).show();
-        notifications.showGuardedScreenMessage();
-    }
-
-    private void dispatchTap(float x, float y) {
-        Path path = new Path();
-        path.moveTo(x, y);
-        GestureDescription gesture = new GestureDescription.Builder()
-                .addStroke(new GestureDescription.StrokeDescription(path, 0L, 1L))
-                .build();
-        dispatchGesture(gesture, null, handler);
     }
 
     private String instagramVersion() {

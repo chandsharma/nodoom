@@ -5,7 +5,7 @@ Good software is not discovered by README length alone. No Doom needs visible pr
 ## Before announcing
 
 - Finish M0 and publish an honest compatibility table.
-- Record a 15–25 second portrait video: open one Reel, attempt several swipes, leave, show normal Explore scrolling, tap the Reels tab and return Home.
+- Record a 15–25 second portrait video: open one Reel, attempt several swipes, leave, show normal Explore scrolling, then show that the Reels tab also stays on its first Reel.
 - Blur usernames and private content; use a test account or public demo material.
 - Add a clear social-preview image and a small demo GIF to the README.
 - Publish the first signed APK, checksum and signing-certificate fingerprint in GitHub Releases.

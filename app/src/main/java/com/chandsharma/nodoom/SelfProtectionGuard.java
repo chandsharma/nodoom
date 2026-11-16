@@ -9,8 +9,11 @@ import java.util.Locale;
 final class SelfProtectionGuard {
     private static final int MAX_NODES = 350;
 
-    boolean shouldClose(String packageName, AccessibilityNodeInfo root) {
-        if (root == null || packageName == null) {
+    boolean shouldClose(
+            String packageName,
+            AccessibilityNodeInfo root,
+            boolean removalAllowed) {
+        if (root == null || packageName == null || removalAllowed) {
             return false;
         }
         String text = visibleText(root);
@@ -18,25 +21,15 @@ final class SelfProtectionGuard {
             return false;
         }
 
-        if (packageName.equals("com.android.settings")
-                || packageName.equals("com.google.android.settings.intelligence")) {
-            return containsAny(text,
-                    "force stop", "uninstall", "clear storage", "clear cache", "storage cache",
-                    "use no doom", "no doom shortcut", "device admin", "deactivate",
-                    "battery usage", "allow background usage", "restricted", "app info",
-                    "running services", "stop service");
+        if (packageName.equals("com.android.settings")) {
+            // Device Admin already blocks ordinary uninstall attempts. Guard only the exact screen
+            // that removes that barrier; broad App-info matching previously closed innocent screens.
+            return text.contains("device admin")
+                    && containsAny(text, "deactivate", "remove device admin");
         }
         if (packageName.equals("com.google.android.permissioncontroller")) {
-            return containsAny(text, "uninstall", "delete this app", "remove app");
-        }
-        if (packageName.equals("com.google.android.apps.nexuslauncher")) {
-            return containsAny(text, "uninstall", "remove app");
-        }
-        if (packageName.equals("com.google.android.apps.wellbeing")) {
-            return containsAny(text, "app timer", "focus mode", "pause app", "bedtime");
-        }
-        if (packageName.equals("com.android.vending")) {
-            return containsAny(text, "uninstall", "remove");
+            return containsAny(text,
+                    "uninstall this app", "do you want to uninstall", "delete this app");
         }
         return false;
     }

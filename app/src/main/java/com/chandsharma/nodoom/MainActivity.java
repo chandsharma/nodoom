@@ -30,7 +30,6 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import java.util.Date;
 import java.util.List;
@@ -47,7 +46,6 @@ public final class MainActivity extends Activity {
         @Override
         public void run() {
             render();
-            handler.postDelayed(this, 1_000L);
         }
     };
 
@@ -85,9 +83,9 @@ public final class MainActivity extends Activity {
         handler.removeCallbacks(refreshTick);
         ProtectionSnapshot snapshot = stateStore.get();
         alarmScheduler.sync(snapshot);
+        notifications.refreshUserSettings();
         notifications.syncStateNotification(snapshot);
         render();
-        handler.postDelayed(refreshTick, 1_000L);
     }
 
     @Override
@@ -113,22 +111,50 @@ public final class MainActivity extends Activity {
         renderProtectionCard(snapshot);
         renderSetupAndHealth();
         renderAbout();
+        scheduleRefreshIfNeeded();
+    }
+
+    private void scheduleRefreshIfNeeded() {
+        handler.removeCallbacks(refreshTick);
+        ProtectionMode mode = stateStore.get().mode;
+        if (mode == ProtectionMode.COUNTDOWN || mode == ProtectionMode.UNLOCK_WINDOW) {
+            handler.postDelayed(refreshTick, 1_000L);
+        }
     }
 
     private void addBrandHeader() {
+        LinearLayout top = new LinearLayout(this);
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+
         TextView eyebrow = text("NO DOOM", 12, color(com.chandsharma.nodoom.R.color.accent));
         eyebrow.setTypeface(Typeface.DEFAULT_BOLD);
         eyebrow.setLetterSpacing(0.16f);
-        content.addView(eyebrow);
+        top.addView(eyebrow, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView title = text("Instagram without the infinite scroll.", 30,
+        Button settings = new Button(this);
+        settings.setText("Settings");
+        settings.setTextSize(13);
+        settings.setAllCaps(false);
+        settings.setTextColor(color(com.chandsharma.nodoom.R.color.muted));
+        settings.setBackgroundColor(Color.TRANSPARENT);
+        settings.setMinHeight(0);
+        settings.setMinWidth(0);
+        settings.setPadding(dp(12), dp(8), 0, dp(8));
+        settings.setOnClickListener(view -> startActivity(
+                new Intent(this, SettingsActivity.class)));
+        top.addView(settings);
+        content.addView(top);
+
+        TextView title = text("Instagram, one Reel at a time.", 30,
                 color(com.chandsharma.nodoom.R.color.ink));
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setPadding(0, dp(8), 0, dp(6));
         content.addView(title);
 
         TextView subtitle = text(
-                "Watch the reel you chose. No next reel, no Reels tab, no modified Instagram.",
+                "Home, profiles and Explore stay normal. A full-screen Reel cannot advance to the next one.",
                 16,
                 color(com.chandsharma.nodoom.R.color.muted));
         subtitle.setLineSpacing(0, 1.12f);
@@ -140,7 +166,7 @@ public final class MainActivity extends Activity {
         LinearLayout card = card();
         card.addView(heading("A deliberate promise to yourself"));
         card.addView(body(
-                "No Doom works beside the official Instagram app. It blocks the Reels tab and stops a full-screen reel from advancing to another reel."));
+                "No Doom works beside the official Instagram app. It keeps every full-screen Reel viewer—including the Reels tab—on one Reel."));
         card.addView(body(
                 "Turning protection off requires a 60-minute wait, followed by a 10-minute confirmation window. Protection stays active for the whole wait."));
         card.addView(body(
@@ -163,7 +189,7 @@ public final class MainActivity extends Activity {
         if (snapshot.mode == ProtectionMode.ON) {
             card.addView(kicker("PROTECTED", protectedColor));
             card.addView(heading("No Doom is ON"));
-            card.addView(body("The Reels tab and next-reel swipes are blocked."));
+            card.addView(body("Full-screen next-Reel swipes are blocked quietly."));
             Button request = secondaryButton("Request to turn off");
             request.setOnClickListener(view -> confirmStartCountdown());
             card.addView(request);
@@ -201,7 +227,7 @@ public final class MainActivity extends Activity {
         } else {
             card.addView(kicker("NOT PROTECTED", accentColor));
             card.addView(heading("No Doom is OFF"));
-            card.addView(body("Instagram is untouched until you turn protection back on."));
+            card.addView(body("The one-Reel rule is paused until you turn protection back on."));
             Button turnOn = primaryButton("Turn on now");
             turnOn.setOnClickListener(view -> {
                 ProtectionSnapshot next = stateStore.turnOn();
@@ -222,56 +248,139 @@ public final class MainActivity extends Activity {
         boolean exactAlarms = getSystemService(AlarmManager.class).canScheduleExactAlarms();
         boolean admin = getSystemService(DevicePolicyManager.class)
                 .isAdminActive(adminComponent());
+        boolean deviceReady = accessibility && notificationPermission && exactAlarms && admin;
         long lastViewer = recognitionStore.lastViewerMillis();
         long lastTab = recognitionStore.lastTabMillis();
         boolean liveCheck = lastViewer > 0L && lastTab > 0L;
-        boolean complete = accessibility && notificationPermission && exactAlarms && admin && liveCheck;
+        boolean complete = deviceReady && liveCheck;
         if (complete && !setupPreferences.getBoolean(KEY_SETUP_COMPLETE, false)) {
             setupPreferences.edit().putBoolean(KEY_SETUP_COMPLETE, true).apply();
         }
 
-        LinearLayout card = card();
-        card.addView(kicker(complete ? "HEALTH CHECK" : "FINISH SETUP",
-                complete
+        if (!deviceReady) {
+            renderNextSetupStep(accessibility, notificationPermission, exactAlarms, admin);
+            spacer(14);
+        }
+
+        LinearLayout accessCard = card();
+        accessCard.addView(kicker("DEVICE ACCESS",
+                deviceReady
                         ? color(com.chandsharma.nodoom.R.color.protected_state)
                         : color(com.chandsharma.nodoom.R.color.warning)));
-        card.addView(heading(complete ? "Everything required is ready" : "A few safeguards need attention"));
+        accessCard.addView(heading(deviceReady
+                ? "All four safeguards are ready"
+                : "Four clearly separated safeguards"));
+        accessCard.addView(body(
+                "These are Android permissions or safeguards. They are separate from the Instagram live test below."));
+        addHealthRow(accessCard, "1 · Accessibility service", accessibility,
+                accessibility ? "On" : "Recognises full-screen Reels");
+        addHealthRow(accessCard, "2 · Notifications", notificationPermission,
+                notificationPermission
+                        ? "Allowed · routine protection alerts are off"
+                        : "Only needed for the unlock-window alert");
+        addHealthRow(accessCard, "3 · Exact timer", exactAlarms,
+                exactAlarms ? "Allowed" : "Opens the decision window on time");
+        addHealthRow(accessCard, "4 · Uninstall barrier", admin,
+                admin ? "Active · removal has its own 10-minute path"
+                        : "Prevents impulsive uninstalling");
+        Button notificationSettings = secondaryButton("Notification and removal settings");
+        notificationSettings.setOnClickListener(view -> startActivity(
+                new Intent(this, SettingsActivity.class)));
+        accessCard.addView(notificationSettings);
+        content.addView(accessCard);
+        spacer(14);
 
-        addHealthRow(card, "Accessibility service", accessibility,
-                accessibility ? "Granted" : "Required to recognise and block Reels");
+        String instagramVersion = instagramVersion();
+        LinearLayout testCard = card();
+        testCard.addView(kicker("INSTAGRAM LIVE CHECK",
+                liveCheck
+                        ? color(com.chandsharma.nodoom.R.color.protected_state)
+                        : color(com.chandsharma.nodoom.R.color.warning)));
+        testCard.addView(heading(liveCheck
+                ? "Both behaviours were recognised"
+                : "Test after device access is ready"));
+        testCard.addView(body(
+                "These rows are test evidence, not permissions. Their timestamps update only after No Doom sees the matching Instagram screen."));
+        addHealthRow(testCard, "Official Instagram", !instagramVersion.equals("Not installed"),
+                instagramVersion);
+        addHealthRow(testCard, "Full-screen Reel recognised", lastViewer > 0L,
+                lastViewer > 0L ? formatDateTime(lastViewer) : "Not seen yet");
+        addHealthRow(testCard, "Reels tab recognised", lastTab > 0L,
+                lastTab > 0L ? formatDateTime(lastTab) : "Not tested yet");
+
+        if (deviceReady && !instagramVersion.equals("Not installed")) {
+            testCard.addView(note(
+                    "Open a full-screen Reel and swipe vertically five times: it must stay on the same Reel. Then open the Reels tab and repeat. Home, profile grids and Explore must still scroll normally."));
+            Button openInstagram = primaryButton("Open Instagram for live check");
+            openInstagram.setOnClickListener(view -> openInstagram());
+            testCard.addView(openInstagram);
+        }
+
+        long interruption = recognitionStore.lastInterruptionMillis();
+        if (interruption > 0L) {
+            testCard.addView(note("Protection was interrupted on "
+                    + formatDateTime(interruption) + "."));
+        }
+
+        String recognizedVersion = recognitionStore.lastRecognizedVersion();
+        if (!recognizedVersion.isBlank()
+                && !recognizedVersion.equals(instagramVersion)
+                && !instagramVersion.equals("Not installed")) {
+            testCard.addView(note(
+                    "Instagram updated from " + recognizedVersion + " to " + instagramVersion
+                            + ". Confirm the live check again."));
+            if (new UserSettings(this).compatibilityAlertEnabled()
+                    && recognitionStore.shouldWarnForVersion(instagramVersion)) {
+                notifications.showInstagramCompatibilityWarning(instagramVersion);
+                recognitionStore.markVersionWarned(instagramVersion);
+            }
+        }
+
+        content.addView(testCard);
+        spacer(14);
+    }
+
+    private void renderNextSetupStep(
+            boolean accessibility,
+            boolean notificationPermission,
+            boolean exactAlarms,
+            boolean admin) {
+        LinearLayout card = card();
+        card.addView(kicker("GUIDED SETUP", color(com.chandsharma.nodoom.R.color.warning)));
+
         if (!accessibility) {
-            Button button = secondaryButton("Open Accessibility settings");
+            card.addView(heading("Step 1 of 4 · Accessibility"));
+            card.addView(body(
+                    "Android requires this to recognise the full-screen Reel viewer and block only its vertical next-Reel gesture."));
+            Button button = primaryButton("Open Accessibility settings");
             button.setOnClickListener(view -> startActivity(
                     new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
             card.addView(button);
             card.addView(note(
-                    "For a sideloaded APK, Android may first require App info → ⋮ → Allow restricted settings."));
-        }
-
-        addHealthRow(card, "Notifications", notificationPermission,
-                notificationPermission ? "Allowed" : "Needed for the unlock-window alert");
-        if (!notificationPermission) {
-            Button button = secondaryButton("Allow notifications");
+                    "If the switch is restricted: App info → ⋮ → Allow restricted settings, then return here."));
+        } else if (!notificationPermission) {
+            card.addView(heading("Step 2 of 4 · Timer alert"));
+            card.addView(body(
+                    "This permission is used for the one alert when your 60-minute wait ends. There is no permanent protection notification."));
+            Button button = primaryButton("Allow notifications");
             button.setOnClickListener(view -> requestPermissions(
                     new String[]{Manifest.permission.POST_NOTIFICATIONS},
                     REQUEST_NOTIFICATIONS));
             card.addView(button);
-        }
-
-        addHealthRow(card, "Exact timer", exactAlarms,
-                exactAlarms ? "Allowed" : "Needed to open the 10-minute window on time");
-        if (!exactAlarms) {
-            Button button = secondaryButton("Allow exact timer");
+        } else if (!exactAlarms) {
+            card.addView(heading("Step 3 of 4 · Exact timer"));
+            card.addView(body(
+                    "This lets the 10-minute decision window open on time without running a background service."));
+            Button button = primaryButton("Allow alarms and reminders");
             button.setOnClickListener(view -> startActivity(new Intent(
                     Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
                     Uri.parse("package:" + getPackageName()))));
             card.addView(button);
-        }
-
-        addHealthRow(card, "Uninstall barrier", admin,
-                admin ? "Active" : "Adds friction to uninstalling while protected");
-        if (!admin) {
-            Button button = secondaryButton("Turn on uninstall barrier");
+        } else if (!admin) {
+            card.addView(heading("Step 4 of 4 · Uninstall barrier"));
+            card.addView(body(
+                    "This adds a deliberate 10-minute removal path. No Doom requests no lock, wipe or password policy."));
+            Button button = primaryButton("Activate uninstall barrier");
             button.setOnClickListener(view -> {
                 Intent intent = new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
                         .putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent())
@@ -281,43 +390,7 @@ public final class MainActivity extends Activity {
             });
             card.addView(button);
         }
-
-        String instagramVersion = instagramVersion();
-        addHealthRow(card, "Official Instagram", !instagramVersion.equals("Not installed"),
-                instagramVersion);
-        addHealthRow(card, "Reel viewer recognised", lastViewer > 0L,
-                lastViewer > 0L ? formatDateTime(lastViewer) : "Not seen yet");
-        addHealthRow(card, "Reels tab blocked", lastTab > 0L,
-                lastTab > 0L ? formatDateTime(lastTab) : "Not tested yet");
-
-        if (!liveCheck && !instagramVersion.equals("Not installed")) {
-            card.addView(note(
-                    "Live check: open Instagram, open one reel and try to swipe; then tap the Reels tab. Return here after both are blocked."));
-            Button openInstagram = primaryButton("Open Instagram for live check");
-            openInstagram.setOnClickListener(view -> openInstagram());
-            card.addView(openInstagram);
-        }
-
-        long interruption = recognitionStore.lastInterruptionMillis();
-        if (interruption > 0L) {
-            card.addView(note("Protection was interrupted on " + formatDateTime(interruption) + "."));
-        }
-
-        String recognizedVersion = recognitionStore.lastRecognizedVersion();
-        if (!recognizedVersion.isBlank()
-                && !recognizedVersion.equals(instagramVersion)
-                && !instagramVersion.equals("Not installed")) {
-            card.addView(note(
-                    "Instagram updated from " + recognizedVersion + " to " + instagramVersion
-                            + ". Confirm the live check again."));
-            if (recognitionStore.shouldWarnForVersion(instagramVersion)) {
-                notifications.showInstagramCompatibilityWarning(instagramVersion);
-                recognitionStore.markVersionWarned(instagramVersion);
-            }
-        }
-
         content.addView(card);
-        spacer(14);
     }
 
     private void renderAbout() {
@@ -325,7 +398,7 @@ public final class MainActivity extends Activity {
         card.addView(kicker("ABOUT", color(com.chandsharma.nodoom.R.color.muted)));
         card.addView(heading("Private by construction"));
         card.addView(body(
-                "No Doom 0.1.0-alpha.1 works with the official Play Store Instagram app. It has no Internet permission, no analytics, no account and no root requirement."));
+                "No Doom 0.2.0-alpha.2 works with the official Play Store Instagram app. It has no Internet permission, no analytics, no account and no root requirement."));
         card.addView(note(
                 "Accessibility can see Instagram and the small set of Android system screens needed for self-protection. Nothing it sees is saved or transmitted."));
         content.addView(card);
@@ -348,7 +421,7 @@ public final class MainActivity extends Activity {
     private void confirmTurnOff() {
         new AlertDialog.Builder(this)
                 .setTitle("Turn off No Doom?")
-                .setMessage("The Reels tab and next-reel swipes will no longer be blocked. Turning No Doom back on is instant.")
+                .setMessage("Full-screen next-Reel swipes will no longer be blocked. Turning No Doom back on is instant.")
                 .setNegativeButton("Keep it on", null)
                 .setPositiveButton("Turn off", (dialog, which) -> {
                     ProtectionSnapshot next = stateStore.confirmTurnOff();
@@ -389,7 +462,11 @@ public final class MainActivity extends Activity {
     private void openInstagram() {
         Intent intent = getPackageManager().getLaunchIntentForPackage("com.instagram.android");
         if (intent == null) {
-            Toast.makeText(this, "Official Instagram is not installed.", Toast.LENGTH_LONG).show();
+            new AlertDialog.Builder(this)
+                    .setTitle("Instagram not found")
+                    .setMessage("Install the official Instagram app from Google Play, then return to the live check.")
+                    .setPositiveButton("OK", null)
+                    .show();
             return;
         }
         startActivity(intent);

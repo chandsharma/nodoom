@@ -16,21 +16,21 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
           packages: >-
             platform-tools
             platforms;android-34
             build-tools;34.0.0
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Unit tests, lint and debug APK
         run: ./gradlew --no-daemon test lint assembleDebug
@@ -43,7 +43,7 @@ jobs:
           fi
 
       - name: Upload debug APK for pull-request testing
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nodoom-debug-${{ github.sha }}
           path: app/build/outputs/apk/debug/*.apk

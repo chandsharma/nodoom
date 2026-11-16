@@ -45,7 +45,8 @@ final class InstagramProtectionModule implements ProtectedAppModule {
         return new Detection(
                 surface,
                 result.strongViewerSignature,
-                result.otherNavigationSelected);
+                result.otherNavigationSelected,
+                result.bottomNavigationTop);
     }
 
     @Override

@@ -27,14 +27,17 @@ interface ProtectedAppModule {
         final Surface surface;
         final boolean strongViewerSignature;
         final boolean otherNavigationSelected;
+        final int nativeNavigationTop;
 
         Detection(
                 Surface surface,
                 boolean strongViewerSignature,
-                boolean otherNavigationSelected) {
+                boolean otherNavigationSelected,
+                int nativeNavigationTop) {
             this.surface = surface;
             this.strongViewerSignature = strongViewerSignature;
             this.otherNavigationSelected = otherNavigationSelected;
+            this.nativeNavigationTop = nativeNavigationTop;
         }
     }
 

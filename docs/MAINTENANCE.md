@@ -30,5 +30,5 @@ The planned diagnostic export stores only:
 - Node class, view ID, bounds, click/scroll/selected booleans.
 - Stable hashes of labels if a label role must be compared.
 
-It must omit raw text and descriptions. Export is owner-initiated and stays local until manually shared. This feature is not enabled in `0.3.0-alpha.3` because its privacy review is not complete.
+It must omit raw text and descriptions. Export is owner-initiated and stays local until manually shared. This feature is not enabled in `0.4.0-alpha.4` because its privacy review is not complete.
 

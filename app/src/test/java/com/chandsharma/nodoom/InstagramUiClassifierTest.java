@@ -53,4 +53,16 @@ public final class InstagramUiClassifierTest {
                 InstagramUiClassifier.Screen.OTHER,
                 InstagramUiClassifier.decide(false, false, 5, false, false));
     }
+
+    @Test
+    public void pixelBottomNavigationBandIsIncluded() {
+        org.junit.Assert.assertTrue(InstagramUiClassifier.isBottomNavigationCandidate(
+                2034, 192, 108, 960, 2142));
+    }
+
+    @Test
+    public void lowerFeedControlsAreNotNavigationCandidates() {
+        org.junit.Assert.assertFalse(InstagramUiClassifier.isBottomNavigationCandidate(
+                1800, 120, 100, 960, 2142));
+    }
 }

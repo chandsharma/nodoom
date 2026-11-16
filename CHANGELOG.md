@@ -2,6 +2,26 @@
 
 All notable user-facing changes are recorded here. Alpha releases remain subject to the physical-device acceptance report in [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md).
 
+## 0.4.0-alpha.4 — 2026-11-16
+
+### Fixed
+
+- Restricts bottom-navigation recognition to Instagram's actual lowest navigation band, preventing lower Home-feed controls from hiding the Home signal and activating the Reel gate.
+- Receives foreground-package transitions for every app so the transparent gate is removed immediately when leaving Instagram.
+- Preserves the privacy boundary: for unrelated apps, No Doom reads only the package name from the transition event and never requests or traverses their accessibility tree.
+- Limits removal-screen tree inspection to Android Settings and Permission Controller before obtaining the root window.
+- Distinguishes an active notification shade from background status-bar updates, so routine System UI events cannot silently remove Reel protection.
+- Ignores No Doom's own background overlay-window event unless the No Doom app is actually foreground, preventing the gate from removing itself immediately after attachment.
+- Leaves Instagram's detected bottom-navigation strip completely outside the overlay, so Home, Search, messages and Profile taps remain native instead of depending on gesture replay.
+- Activates accessible Reel controls directly, with gesture replay only as a fallback, so comments and sharing open reliably while vertical paging stays blocked.
+- Restores Reel protection from the System UI close transition itself, including when Instagram emits no fresh event after the notification shade closes.
+
+### Validation
+
+- Passed 25 unit tests and Android lint with zero issues.
+- The owner-signed APK passed a focused Pixel 9 Pro / Android 17 regression against official Instagram `454.0.0.54.77`: Home scroll, five blocked Reel swipes, native bottom navigation, comments and share-sheet scrolling, foreground switching, and notification-shade open/close with immediate gate restoration.
+- The broader entry-point matrix and extended battery/daily-use testing remain open before a stable release.
+
 ## 0.3.0-alpha.3 — 2026-11-16
 
 ### Changed

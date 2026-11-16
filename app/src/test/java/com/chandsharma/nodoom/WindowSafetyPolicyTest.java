@@ -35,4 +35,48 @@ public final class WindowSafetyPolicyTest {
                 true,
                 true));
     }
+
+    @Test
+    public void backgroundStatusBarUpdateDoesNotSuspendInstagram() {
+        assertFalse(WindowSafetyPolicy.systemUiObscures(
+                "com.android.systemui",
+                "com.instagram.android"));
+    }
+
+    @Test
+    public void activeNotificationShadeSuspendsInstagram() {
+        assertTrue(WindowSafetyPolicy.systemUiObscures(
+                "com.android.systemui",
+                "com.android.systemui"));
+    }
+
+    @Test
+    public void closingNotificationShadeResumesProtectedApp() {
+        assertTrue(WindowSafetyPolicy.systemUiReleased(
+                "com.android.systemui",
+                "com.instagram.android",
+                true));
+    }
+
+    @Test
+    public void backgroundStatusBarUpdateDoesNotInventResume() {
+        assertFalse(WindowSafetyPolicy.systemUiReleased(
+                "com.android.systemui",
+                "com.instagram.android",
+                false));
+    }
+
+    @Test
+    public void overlayEventIsNotAnAppSwitch() {
+        assertFalse(WindowSafetyPolicy.eventBelongsToActiveWindow(
+                "com.chandsharma.nodoom",
+                "com.instagram.android"));
+    }
+
+    @Test
+    public void actualNoDoomWindowIsAnAppSwitch() {
+        assertTrue(WindowSafetyPolicy.eventBelongsToActiveWindow(
+                "com.chandsharma.nodoom",
+                "com.chandsharma.nodoom"));
+    }
 }

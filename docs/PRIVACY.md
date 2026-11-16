@@ -16,5 +16,7 @@ The Accessibility service processes the live UI structure of:
 2. Android System UI, only to detect that the notification shade, Quick Settings or another system surface is in front and immediately release No Doom's transparent gesture layer.
 3. Android Settings and Permission Controller, only to recognise No Doom's exact device-admin removal or uninstall confirmation while its removal timer is not ready.
 
+Android also delivers foreground-transition events from other apps. No Doom uses only the event's package name to remove a stale gesture layer, then returns before requesting or traversing that app's window. It does not inspect, retain or transmit the other app's text or controls.
+
 Persisted data is limited to protection/removal state, elapsed-time deadlines, notification and optional-toast choices, setup completion, last recognition timestamps, Instagram version and an interruption timestamp. Clearing app data removes it; missing protection data fails safe to protection ON.
 

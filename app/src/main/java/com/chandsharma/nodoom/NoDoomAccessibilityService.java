@@ -72,10 +72,23 @@ public final class NoDoomAccessibilityService extends AccessibilityService
         String packageName = packageValue == null ? "" : packageValue.toString();
         if (SYSTEM_UI_PACKAGE.equals(packageName)) {
             // Notification shade, Quick Settings, volume UI and other trusted system surfaces must
-            // always receive their own gestures. Keep only the explicit Reels-session memory so it
-            // can be restored after the shade closes.
-            systemUiObscuring = true;
-            suspendGestureGate();
+            // always receive their own gestures. Ignore background status-bar updates while
+            // Instagram remains the active window.
+            String activePackage = activeWindowPackage();
+            if (WindowSafetyPolicy.systemUiObscures(packageName, activePackage)) {
+                systemUiObscuring = true;
+                suspendGestureGate();
+            } else if (WindowSafetyPolicy.systemUiReleased(
+                    packageName,
+                    activePackage,
+                    systemUiObscuring)) {
+                systemUiObscuring = false;
+                ProtectedAppModule activeModule = appRegistry.find(activePackage);
+                if (activeModule != null) {
+                    currentModule = activeModule;
+                    handler.post(this::inspectCurrentWindow);
+                }
+            }
             return;
         }
 
@@ -91,6 +104,13 @@ public final class NoDoomAccessibilityService extends AccessibilityService
         }
 
         systemUiObscuring = false;
+        if (!WindowSafetyPolicy.eventBelongsToActiveWindow(
+                packageName,
+                activeWindowPackage())) {
+            // TYPE_ACCESSIBILITY_OVERLAY window updates are attributed to No Doom even while
+            // Instagram remains active. They are not an app switch.
+            return;
+        }
         resetProtectionSession(true);
         guardSystemScreen(packageName);
     }
@@ -120,6 +140,47 @@ public final class NoDoomAccessibilityService extends AccessibilityService
         }
         lastBlockHintElapsed = now;
         Toast.makeText(this, "One Reel only", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public boolean onTap(float x, float y) {
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) {
+            return false;
+        }
+        try {
+            CharSequence packageName = root.getPackageName();
+            if (packageName == null || !InstagramProtectionModule.PACKAGE_NAME.contentEquals(
+                    packageName)) {
+                return false;
+            }
+            return performDeepestClick(root, Math.round(x), Math.round(y));
+        } finally {
+            root.recycle();
+        }
+    }
+
+    private boolean performDeepestClick(AccessibilityNodeInfo node, int x, int y) {
+        Rect bounds = new Rect();
+        node.getBoundsInScreen(bounds);
+        if (!bounds.contains(x, y)) {
+            return false;
+        }
+        for (int index = node.getChildCount() - 1; index >= 0; index--) {
+            AccessibilityNodeInfo child = node.getChild(index);
+            if (child == null) {
+                continue;
+            }
+            try {
+                if (performDeepestClick(child, x, y)) {
+                    return true;
+                }
+            } finally {
+                child.recycle();
+            }
+        }
+        return node.isClickable()
+                && node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
     }
 
     @Override
@@ -174,6 +235,18 @@ public final class NoDoomAccessibilityService extends AccessibilityService
         guardSystemScreen(packageName);
     }
 
+    private String activeWindowPackage() {
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) {
+            return "";
+        }
+        try {
+            return root.getPackageName() == null ? "" : root.getPackageName().toString();
+        } finally {
+            root.recycle();
+        }
+    }
+
     private void inspectProtectedApp(ProtectedAppModule module) {
         AccessibilityNodeInfo root = getRootInActiveWindow();
         if (root == null || root.getPackageName() == null
@@ -207,14 +280,14 @@ public final class NoDoomAccessibilityService extends AccessibilityService
             if (detection.surface == ProtectedAppModule.Surface.INFINITE_FEED) {
                 startInfiniteFeedSession(false);
                 recordInfiniteFeedIfNeeded(module);
-                enterProtectedViewer(module, root);
+                enterProtectedViewer(module, root, detection.nativeNavigationTop);
                 return;
             }
             if (detection.surface == ProtectedAppModule.Surface.SINGLE_ITEM_VIEWER) {
                 if (currentScreenIsProtectedViewer || explicitInfiniteFeedSession) {
-                    enterProtectedViewer(module, root);
+                    enterProtectedViewer(module, root, detection.nativeNavigationTop);
                 } else {
-                    confirmViewerCandidate(module, root);
+                    confirmViewerCandidate(module, root, detection.nativeNavigationTop);
                 }
                 return;
             }
@@ -232,7 +305,7 @@ public final class NoDoomAccessibilityService extends AccessibilityService
                     && detection.strongViewerSignature
                     && !detection.otherNavigationSelected) {
                 recordInfiniteFeedIfNeeded(module);
-                enterProtectedViewer(module, root);
+                enterProtectedViewer(module, root, detection.nativeNavigationTop);
                 return;
             }
 
@@ -248,7 +321,8 @@ public final class NoDoomAccessibilityService extends AccessibilityService
 
     private void confirmViewerCandidate(
             ProtectedAppModule module,
-            AccessibilityNodeInfo root) {
+            AccessibilityNodeInfo root,
+            int nativeNavigationTop) {
         long now = SystemClock.elapsedRealtime();
         if (!module.packageName().equals(viewerCandidatePackage)) {
             viewerCandidatePackage = module.packageName();
@@ -259,7 +333,7 @@ public final class NoDoomAccessibilityService extends AccessibilityService
         }
         long age = now - viewerCandidateSinceElapsed;
         if (age >= VIEWER_CONFIRMATION_MILLIS) {
-            enterProtectedViewer(module, root);
+            enterProtectedViewer(module, root, nativeNavigationTop);
             return;
         }
         handler.postDelayed(
@@ -269,7 +343,8 @@ public final class NoDoomAccessibilityService extends AccessibilityService
 
     private void enterProtectedViewer(
             ProtectedAppModule module,
-            AccessibilityNodeInfo root) {
+            AccessibilityNodeInfo root,
+            int nativeNavigationTop) {
         clearViewerCandidate();
         viewerExitGeneration++;
         currentModule = module;
@@ -277,7 +352,7 @@ public final class NoDoomAccessibilityService extends AccessibilityService
         recordViewerIfNeeded(module);
         Rect appBounds = new Rect();
         root.getBoundsInScreen(appBounds);
-        gestureGate.show(appBounds);
+        gestureGate.show(appBounds, nativeNavigationTop);
     }
 
     private void scheduleUncertainViewerExit() {
@@ -403,6 +478,11 @@ public final class NoDoomAccessibilityService extends AccessibilityService
     }
 
     private void guardSystemScreen(String packageName) {
+        // The service receives foreground-package transitions globally so it can remove a stale
+        // overlay immediately. Never request or traverse another app's tree here.
+        if (!selfProtectionGuard.handlesPackage(packageName)) {
+            return;
+        }
         long now = SystemClock.elapsedRealtime();
         if (now - lastGuardElapsed < GUARD_COOLDOWN_MILLIS) {
             return;

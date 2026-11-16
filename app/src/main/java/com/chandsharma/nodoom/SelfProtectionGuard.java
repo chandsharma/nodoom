@@ -9,11 +9,16 @@ import java.util.Locale;
 final class SelfProtectionGuard {
     private static final int MAX_NODES = 350;
 
+    boolean handlesPackage(String packageName) {
+        return "com.android.settings".equals(packageName)
+                || "com.google.android.permissioncontroller".equals(packageName);
+    }
+
     boolean shouldClose(
             String packageName,
             AccessibilityNodeInfo root,
             boolean removalAllowed) {
-        if (root == null || packageName == null || removalAllowed) {
+        if (root == null || !handlesPackage(packageName) || removalAllowed) {
             return false;
         }
         String text = visibleText(root);

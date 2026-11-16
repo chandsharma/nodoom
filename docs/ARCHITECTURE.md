@@ -4,7 +4,7 @@
 
 No Doom is a separate Android application. It never shares Instagram's UID, files, credentials or signing certificate. The official `com.instagram.android` package continues to perform all account and network activity.
 
-The manifest contains no Internet permission. Accessibility access is package-scoped to Instagram, Android System UI (only to release the overlay when the notification shade is in front), and a short allowlist used to protect No Doom's own removal settings.
+The manifest contains no Internet permission. Android must deliver foreground package transitions globally so No Doom can remove its transparent gate immediately when another app appears. The service filters before reading a window: it inspects UI structure only for Instagram, Android System UI, Android Settings and Permission Controller. For every other package it observes the package name, clears any gate and returns without requesting or traversing that app's accessibility tree.
 
 ## Components
 

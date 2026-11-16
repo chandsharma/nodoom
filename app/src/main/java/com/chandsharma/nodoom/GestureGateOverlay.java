@@ -25,6 +25,8 @@ final class GestureGateOverlay {
     interface Callback {
         void onVerticalSwipeBlocked();
 
+        boolean onTap(float x, float y);
+
         boolean shouldRestoreGate();
     }
 
@@ -56,11 +58,17 @@ final class GestureGateOverlay {
         this.layoutParams.setTitle("No Doom reel gesture gate");
     }
 
-    void show(Rect bounds) {
+    void show(Rect bounds, int nativeNavigationTop) {
         if (bounds == null || bounds.isEmpty()) {
             return;
         }
         targetBounds = new Rect(bounds);
+        if (nativeNavigationTop > targetBounds.top
+                && nativeNavigationTop < targetBounds.bottom) {
+            // Instagram owns this strip. Its bottom navigation remains genuinely native rather
+            // than being intercepted and replayed by the gesture gate.
+            targetBounds.bottom = nativeNavigationTop;
+        }
         show();
     }
 
@@ -84,7 +92,7 @@ final class GestureGateOverlay {
             try {
                 windowManager.addView(gateView, layoutParams);
                 attached = true;
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException failure) {
                 attached = false;
             }
         });
@@ -203,7 +211,9 @@ final class GestureGateOverlay {
                     callback.onVerticalSwipeBlocked();
                 } else if (action == MotionEvent.ACTION_UP && !points.isEmpty()) {
                     performClick();
-                    forwardGesture(new ArrayList<>(points), duration);
+                    if (!callback.onTap(event.getRawX(), event.getRawY())) {
+                        forwardGesture(new ArrayList<>(points), duration);
+                    }
                 }
                 points.clear();
                 verticalSwipe = false;

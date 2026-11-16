@@ -42,7 +42,7 @@ For a sideloaded app, Pixel may initially block the Accessibility switch:
 4. Return to **Settings → Accessibility → Downloaded apps → No Doom**.
 5. Turn on **Use No Doom** and accept Android's disclosure.
 
-Accessibility is powerful. The open-source app has no Internet permission and is configured to inspect only Instagram, Android System UI to release the gesture layer for the notification shade, and the two system surfaces needed for the removal barrier.
+Accessibility is powerful. The open-source app has no Internet permission. It receives foreground package transitions so it can remove its gate when you leave Instagram, but inspects UI structure only inside Instagram, Android System UI and the two removal-barrier system screens. Other apps' window content is not requested or traversed.
 
 ### Notifications
 

@@ -38,14 +38,17 @@ final class InstagramUiClassifier {
         final Screen screen;
         final boolean strongViewerSignature;
         final boolean otherNavigationSelected;
+        final int bottomNavigationTop;
 
         Result(
                 Screen screen,
                 boolean strongViewerSignature,
-                boolean otherNavigationSelected) {
+                boolean otherNavigationSelected,
+                int bottomNavigationTop) {
             this.screen = screen;
             this.strongViewerSignature = strongViewerSignature;
             this.otherNavigationSelected = otherNavigationSelected;
+            this.bottomNavigationTop = bottomNavigationTop;
         }
     }
 
@@ -65,7 +68,7 @@ final class InstagramUiClassifier {
 
     Result classify(AccessibilityNodeInfo root, int screenWidth, int screenHeight) {
         if (root == null || screenWidth <= 0 || screenHeight <= 0) {
-            return new Result(Screen.OTHER, false, false);
+            return new Result(Screen.OTHER, false, false, 0);
         }
 
         List<AccessibilityNodeInfo> nodes = collect(root);
@@ -77,6 +80,9 @@ final class InstagramUiClassifier {
             boolean otherNavigationSelected = hasOtherSelectedNavigation(bottomButtons, reels);
             boolean hasBottomNavigation = hasBottomNavigation(
                     bottomButtons, screenWidth, screenHeight);
+            int bottomNavigationTop = hasBottomNavigation
+                    ? bottomNavigationTop(bottomButtons)
+                    : 0;
             int railCount = verticalActionRailCount(nodes, screenWidth, screenHeight);
             boolean viewerSurface = hasFullscreenScrollSurface(nodes, screenWidth, screenHeight);
             boolean bottomSheet = hasForegroundBottomSheet(nodes, screenWidth, screenHeight);
@@ -87,7 +93,11 @@ final class InstagramUiClassifier {
                     railCount,
                     viewerSurface,
                     bottomSheet);
-            return new Result(screen, strongViewerSignature, otherNavigationSelected);
+            return new Result(
+                    screen,
+                    strongViewerSignature,
+                    otherNavigationSelected,
+                    bottomNavigationTop);
         } finally {
             for (AccessibilityNodeInfo node : nodes) {
                 if (node != root) {
@@ -184,10 +194,12 @@ final class InstagramUiClassifier {
             }
             Rect bounds = new Rect();
             node.getBoundsInScreen(bounds);
-            if (bounds.isEmpty()
-                    || bounds.centerY() < height * 0.78f
-                    || bounds.width() > width * 0.38f
-                    || bounds.height() > height * 0.22f) {
+            if (bounds.isEmpty() || !isBottomNavigationCandidate(
+                    bounds.centerY(),
+                    bounds.width(),
+                    bounds.height(),
+                    width,
+                    height)) {
                 continue;
             }
             int bucket = Math.max(0, Math.min(9, bounds.centerX() * 10 / Math.max(1, width)));
@@ -201,6 +213,17 @@ final class InstagramUiClassifier {
             return bounds.centerX();
         }));
         return result;
+    }
+
+    static boolean isBottomNavigationCandidate(
+            int centerY,
+            int candidateWidth,
+            int candidateHeight,
+            int screenWidth,
+            int screenHeight) {
+        return centerY >= screenHeight * 0.90f
+                && candidateWidth <= screenWidth * 0.38f
+                && candidateHeight <= screenHeight * 0.22f;
     }
 
     private boolean hasBottomNavigation(
@@ -224,6 +247,16 @@ final class InstagramUiClassifier {
         }
         return maxX - minX >= width * 0.55f
                 && maxY - minY <= height * 0.09f;
+    }
+
+    private int bottomNavigationTop(List<AccessibilityNodeInfo> buttons) {
+        int top = Integer.MAX_VALUE;
+        for (AccessibilityNodeInfo button : buttons) {
+            Rect bounds = new Rect();
+            button.getBoundsInScreen(bounds);
+            top = Math.min(top, bounds.top);
+        }
+        return top == Integer.MAX_VALUE ? 0 : top;
     }
 
     private AccessibilityNodeInfo findByTokens(

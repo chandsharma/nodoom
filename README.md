@@ -8,7 +8,7 @@ No Doom is an open-source Android companion app that lets you watch one full-scr
 
 ### [⬇️ Download No Doom APK](https://github.com/chandsharma/nodoom/releases/latest/download/NoDoom.apk)
 
-**Current version:** `0.3.0-alpha.3` · **Requires:** Android 14 or newer
+**Current version:** `0.4.0-alpha.4` · **Requires:** Android 14 or newer
 
 [View release notes and checksums](https://github.com/chandsharma/nodoom/releases/latest) · [Changelog](CHANGELOG.md) · [Read the installation guide](docs/INSTALL.md)
 
@@ -21,7 +21,7 @@ This is an owner-signed alpha release for Pixel 9 Pro feasibility testing. Compl
 - A 60-minute cooling-off period plus a 10-minute confirmation window makes impulsive disabling harder.
 
 > [!IMPORTANT]
-> No Doom is a real daily-use app under active development, not a tutorial project. Versions `0.1.0-alpha.1` and `0.2.0-alpha.2` exposed physical-device gesture edge cases; `0.3.0-alpha.3` contains the System UI isolation and conservative viewer-recognition fixes and awaits physical retesting. Do not rely on an alpha build until its in-app live check passes on your phone.
+> No Doom is a real daily-use app under active development, not a tutorial project. `0.4.0-alpha.4` passed its focused Pixel 9 Pro regression for Home scrolling, the one-Reel gate, native navigation and controls, comments/share sheets, app switching, and the notification shade. It remains an alpha until the full entry-point matrix and extended daily-use checks are complete; always run the in-app live check after Instagram updates.
 
 ## What it changes
 
@@ -40,7 +40,7 @@ No Doom uses Android Accessibility to recognise a full-screen Reel and intercept
 
 Instagram remains the Play Store-signed app and handles every login, video, message, like, comment, and network request. No Doom does not contact Instagram and does not perform social actions for you.
 
-The release manifest intentionally has **no `INTERNET` permission**. Screen structure is inspected in memory only for Instagram and the small set of Android system screens needed for self-protection. Release builds do not store captions, messages, usernames, images, or accessibility-tree dumps. See [Privacy](docs/PRIVACY.md) and [Architecture](docs/ARCHITECTURE.md).
+The release manifest intentionally has **no `INTERNET` permission**. Foreground package transitions are observed only to remove a stale gate when you switch apps; window structure is inspected in memory solely for Instagram and the small set of Android system screens needed for safe release/removal behavior. Release builds do not store captions, messages, usernames, images, or accessibility-tree dumps. See [Privacy](docs/PRIVACY.md) and [Architecture](docs/ARCHITECTURE.md).
 
 ## Install
 

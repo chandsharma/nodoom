@@ -4,6 +4,14 @@
 
 No Doom is an open-source Android companion app that lets you watch one full-screen Reel, then blocks the swipe to the next Reel. Home, Explore, profiles and the official Instagram app stay intact.
 
+![No Doom — One Reel. Then you choose.](store-assets/graphics/feature-graphic-1024x500.png)
+
+<p align="center">
+  <img src="store-assets/phone-screenshots/01-one-reel.png" width="30%" alt="No Doom keeps the selected Reel in place">
+  <img src="store-assets/phone-screenshots/02-private-accessibility.png" width="30%" alt="Clear Accessibility disclosure and private on-device processing">
+  <img src="store-assets/phone-screenshots/03-payment-control.png" width="30%" alt="Payment compatibility control in No Doom settings">
+</p>
+
 ## Download for Android
 
 ### [⬇️ Download No Doom APK](https://github.com/chandsharma/nodoom/releases/latest/download/NoDoom.apk)

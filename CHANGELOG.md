@@ -2,6 +2,23 @@
 
 All notable user-facing changes are recorded here. Alpha releases remain subject to the physical-device acceptance report in [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md).
 
+## 1.0.0 — 2026-11-17
+
+### Changed
+
+- Targets Android 16 / API 36 for Google Play submission.
+- Shows a prominent disclosure and requires affirmative consent before opening Accessibility settings.
+- Makes notification permission optional and keeps every notification and blocked-swipe hint off by default for new installs.
+- Replaces exact-alarm special access with best-effort inexact wake-ups; stored monotonic deadlines remain authoritative and can never shorten the 60-minute cooling-off period.
+- Removes Device Administrator, the uninstall barrier and all Accessibility inspection of Settings or uninstall screens; Android's standard disable and uninstall controls always remain available.
+- Adds a payment-compatibility action that fully disables No Doom Accessibility after confirmation and explains that Android requires manual re-enabling.
+- Adds Play listing copy, privacy webpage, app icon, feature graphic and phone screenshots.
+
+### Privacy and safety
+
+- Immediately clears all gesture and Reel-session state when a confirmed non-Instagram app comes to the foreground.
+- Continues to request no Internet permission and stores no screen content.
+
 ## 0.5.0-alpha.6 — 2026-11-16
 
 ### Fixed

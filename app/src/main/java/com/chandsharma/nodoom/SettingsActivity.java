@@ -3,8 +3,6 @@ package com.chandsharma.nodoom;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.admin.DevicePolicyManager;
-import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -12,8 +10,6 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
@@ -24,21 +20,10 @@ import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
 
-import java.util.Locale;
-
 public final class SettingsActivity extends Activity {
     private static final int REQUEST_NOTIFICATIONS = 601;
 
-    private final Handler handler = new Handler(Looper.getMainLooper());
-    private final Runnable refreshTick = new Runnable() {
-        @Override
-        public void run() {
-            render();
-        }
-    };
-
     private UserSettings userSettings;
-    private RemovalStateStore removalStore;
     private NotificationController notifications;
     private LinearLayout content;
 
@@ -46,7 +31,6 @@ public final class SettingsActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         userSettings = new UserSettings(this);
-        removalStore = new RemovalStateStore(this);
         notifications = new NotificationController(this);
 
         ScrollView scrollView = new ScrollView(this);
@@ -64,14 +48,7 @@ public final class SettingsActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        handler.removeCallbacks(refreshTick);
         render();
-    }
-
-    @Override
-    protected void onPause() {
-        handler.removeCallbacks(refreshTick);
-        super.onPause();
     }
 
     private void render() {
@@ -86,6 +63,8 @@ public final class SettingsActivity extends Activity {
                 "Choose the alerts that matter. No Doom never shows routine protection popups inside Instagram."));
         spacer(18);
 
+        renderAccessibilitySettings();
+        spacer(14);
         renderNotificationSettings();
         spacer(14);
         renderInstagramFeedback();
@@ -93,14 +72,43 @@ public final class SettingsActivity extends Activity {
         renderBehaviourSummary();
         spacer(14);
         renderRemovalSettings();
-        scheduleRefreshIfNeeded();
     }
 
-    private void scheduleRefreshIfNeeded() {
-        handler.removeCallbacks(refreshTick);
-        if (removalStore.get().mode != RemovalStateStore.Mode.IDLE) {
-            handler.postDelayed(refreshTick, 1_000L);
-        }
+    private void renderAccessibilitySettings() {
+        LinearLayout card = card();
+        card.addView(kicker("PAYMENTS & BANKING", getColor(R.color.warning)));
+        card.addView(heading("A real compatibility switch"));
+        card.addView(body(
+                "Some payment apps block transactions whenever any downloaded Accessibility service is enabled—even while No Doom is suspended outside Instagram."));
+        Button pause = primaryButton("Turn off Accessibility for payments");
+        pause.setOnClickListener(view -> confirmDisableAccessibility());
+        card.addView(pause);
+        card.addView(note(
+                "Android does not allow No Doom to turn itself back on. After paying, re-enable No Doom manually in Accessibility settings."));
+        content.addView(card);
+    }
+
+    private void confirmDisableAccessibility() {
+        new AlertDialog.Builder(this)
+                .setTitle("Turn off No Doom Accessibility?")
+                .setMessage(
+                        "This fully disables the Accessibility service for payment-app compatibility. No Doom cannot protect Instagram until you manually enable it again. Your payment app may also require a phone restart.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Turn off service", (dialog, which) -> {
+                    sendBroadcast(new Intent(
+                            NoDoomAccessibilityService.ACTION_DISABLE_SERVICE)
+                            .setPackage(getPackageName()));
+                    new AlertDialog.Builder(this)
+                            .setTitle("Accessibility turned off")
+                            .setMessage(
+                                    "You can now return to your payment app. If it still asks, restart the phone. Re-enable No Doom after paying.")
+                            .setNegativeButton("Done", null)
+                            .setPositiveButton("Open Accessibility settings", (next, ignored) ->
+                                    startActivity(new Intent(
+                                            Settings.ACTION_ACCESSIBILITY_SETTINGS)))
+                            .show();
+                })
+                .show();
     }
 
     private void renderNotificationSettings() {
@@ -197,77 +205,17 @@ public final class SettingsActivity extends Activity {
     private void renderRemovalSettings() {
         LinearLayout card = card();
         card.addView(kicker("REMOVE APP", getColor(R.color.warning)));
-        card.addView(heading("A clear 10-minute path"));
-
-        DevicePolicyManager policyManager = getSystemService(DevicePolicyManager.class);
-        if (!policyManager.isAdminActive(adminComponent())) {
-            card.addView(body(
-                    "The uninstall barrier is already off. Android can uninstall No Doom normally."));
-            Button uninstall = secondaryButton("Open uninstall screen");
-            uninstall.setOnClickListener(view -> openUninstallScreen());
-            card.addView(uninstall);
-            content.addView(card);
-            return;
-        }
-
-        RemovalStateStore.Snapshot removal = removalStore.get();
-        if (removal.mode == RemovalStateStore.Mode.IDLE) {
-            card.addView(body(
-                    "Start a 10-minute wait. Protection stays active, then a 10-minute removal window opens."));
-            Button start = secondaryButton("Start 10-minute removal timer");
-            start.setOnClickListener(view -> {
-                removalStore.requestRemoval();
-                render();
-            });
-            card.addView(start);
-        } else if (removal.mode == RemovalStateStore.Mode.WAITING) {
-            card.addView(heading(formatRemaining(removal.remainingMillis())));
-            card.addView(body("The uninstall barrier remains active until this reaches zero."));
-            Button cancel = secondaryButton("Cancel removal request");
-            cancel.setOnClickListener(view -> {
-                removalStore.cancel();
-                render();
-            });
-            card.addView(cancel);
-        } else {
-            card.addView(heading("Removal window · " + formatRemaining(removal.remainingMillis())));
-            card.addView(body(
-                    "No Doom will deactivate only its uninstall barrier, then Android will ask you to confirm uninstalling."));
-            Button remove = primaryButton("Deactivate barrier and uninstall");
-            remove.setOnClickListener(view -> confirmRemoval());
-            card.addView(remove);
-            Button cancel = secondaryButton("Cancel and keep No Doom");
-            cancel.setOnClickListener(view -> {
-                removalStore.cancel();
-                render();
-            });
-            card.addView(cancel);
-        }
+        card.addView(heading("Standard Android uninstall"));
+        card.addView(body(
+                "No Doom never prevents you from disabling Accessibility or uninstalling the app."));
+        Button uninstall = secondaryButton("Open uninstall screen");
+        uninstall.setOnClickListener(view -> openUninstallScreen());
+        card.addView(uninstall);
         content.addView(card);
-    }
-
-    private void confirmRemoval() {
-        if (!removalStore.removalAllowed()) {
-            render();
-            return;
-        }
-        new AlertDialog.Builder(this)
-                .setTitle("Remove No Doom?")
-                .setMessage("The uninstall barrier will be deactivated. Android will show its normal uninstall confirmation next.")
-                .setNegativeButton("Keep No Doom", null)
-                .setPositiveButton("Continue", (dialog, which) -> {
-                    getSystemService(DevicePolicyManager.class).removeActiveAdmin(adminComponent());
-                    handler.postDelayed(this::openUninstallScreen, 500L);
-                })
-                .show();
     }
 
     private void openUninstallScreen() {
         startActivity(new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + getPackageName())));
-    }
-
-    private ComponentName adminComponent() {
-        return new ComponentName(this, NoDoomDeviceAdminReceiver.class);
     }
 
     private LinearLayout toggle(
@@ -425,12 +373,6 @@ public final class SettingsActivity extends Activity {
 
     private void spacer(int heightDp) {
         content.addView(new View(this), new LinearLayout.LayoutParams(1, dp(heightDp)));
-    }
-
-    private String formatRemaining(long remainingMillis) {
-        long totalSeconds = Math.max(0L, (remainingMillis + 999L) / 1_000L);
-        return String.format(Locale.ROOT, "%02d:%02d", totalSeconds / 60L,
-                totalSeconds % 60L);
     }
 
     private int dp(int value) {

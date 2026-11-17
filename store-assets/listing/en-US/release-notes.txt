@@ -1,0 +1,7 @@
+First Google Play release.
+
+• Blocks only full-screen next-Reel swipes while normal Instagram scrolling stays intact
+• Immediately suspends its gesture layer outside Instagram
+• Adds prominent Accessibility disclosure and on-device privacy controls
+• Adds a payment-compatibility action to turn off Accessibility
+• Uses standard Android uninstall and requests no Device Administrator access

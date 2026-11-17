@@ -3,10 +3,7 @@ package com.chandsharma.nodoom;
 import android.Manifest;
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.app.Activity;
-import android.app.AlarmManager;
 import android.app.AlertDialog;
-import android.app.admin.DevicePolicyManager;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -38,8 +35,9 @@ import java.util.Locale;
 public final class MainActivity extends Activity {
     private static final String SETUP_PREFS = "setup_v1";
     private static final String KEY_WELCOME_ACCEPTED = "welcome_accepted";
+    private static final String KEY_ACCESSIBILITY_DISCLOSURE_ACCEPTED =
+            "accessibility_disclosure_accepted";
     private static final String KEY_SETUP_COMPLETE = "setup_complete";
-    private static final int REQUEST_NOTIFICATIONS = 501;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable refreshTick = new Runnable() {
@@ -245,10 +243,7 @@ public final class MainActivity extends Activity {
         boolean accessibility = isAccessibilityEnabled();
         boolean notificationPermission = checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                 == PackageManager.PERMISSION_GRANTED;
-        boolean exactAlarms = getSystemService(AlarmManager.class).canScheduleExactAlarms();
-        boolean admin = getSystemService(DevicePolicyManager.class)
-                .isAdminActive(adminComponent());
-        boolean deviceReady = accessibility && notificationPermission && exactAlarms && admin;
+        boolean deviceReady = accessibility;
         long lastViewer = recognitionStore.lastViewerMillis();
         long lastTab = recognitionStore.lastTabMillis();
         boolean liveCheck = lastViewer > 0L && lastTab > 0L;
@@ -258,7 +253,7 @@ public final class MainActivity extends Activity {
         }
 
         if (!deviceReady) {
-            renderNextSetupStep(accessibility, notificationPermission, exactAlarms, admin);
+            renderNextSetupStep();
             spacer(14);
         }
 
@@ -268,22 +263,17 @@ public final class MainActivity extends Activity {
                         ? color(com.chandsharma.nodoom.R.color.protected_state)
                         : color(com.chandsharma.nodoom.R.color.warning)));
         accessCard.addView(heading(deviceReady
-                ? "All four safeguards are ready"
-                : "Four clearly separated safeguards"));
+                ? "Required access is ready"
+                : "One required permission"));
         accessCard.addView(body(
-                "These are Android permissions or safeguards. They are separate from the Instagram live test below."));
-        addHealthRow(accessCard, "1 · Accessibility service", accessibility,
+                "Accessibility is required for the one-Reel rule. Notifications are optional and controlled in Settings."));
+        addHealthRow(accessCard, "Accessibility service", accessibility,
                 accessibility ? "On" : "Recognises full-screen Reels");
-        addHealthRow(accessCard, "2 · Notifications", notificationPermission,
+        addHealthRow(accessCard, "Notifications (optional)", true,
                 notificationPermission
                         ? "Allowed · every alert is controlled in Settings"
-                        : "Only needed for the unlock-window alert");
-        addHealthRow(accessCard, "3 · Exact timer", exactAlarms,
-                exactAlarms ? "Allowed" : "Opens the decision window on time");
-        addHealthRow(accessCard, "4 · Uninstall barrier", admin,
-                admin ? "Active · removal has its own 10-minute path"
-                        : "Prevents impulsive uninstalling");
-        Button notificationSettings = secondaryButton("Notification and removal settings");
+                        : "Off · protection still works quietly");
+        Button notificationSettings = secondaryButton("Notification and app settings");
         notificationSettings.setOnClickListener(view -> startActivity(
                 new Intent(this, SettingsActivity.class)));
         accessCard.addView(notificationSettings);
@@ -340,57 +330,44 @@ public final class MainActivity extends Activity {
         spacer(14);
     }
 
-    private void renderNextSetupStep(
-            boolean accessibility,
-            boolean notificationPermission,
-            boolean exactAlarms,
-            boolean admin) {
+    private void renderNextSetupStep() {
+        boolean previouslyReviewed = setupPreferences.getBoolean(
+                KEY_ACCESSIBILITY_DISCLOSURE_ACCEPTED,
+                false);
         LinearLayout card = card();
         card.addView(kicker("GUIDED SETUP", color(com.chandsharma.nodoom.R.color.warning)));
-
-        if (!accessibility) {
-            card.addView(heading("Step 1 of 4 · Accessibility"));
-            card.addView(body(
-                    "Android requires this to recognise the full-screen Reel viewer and block only its vertical next-Reel gesture."));
-            Button button = primaryButton("Open Accessibility settings");
-            button.setOnClickListener(view -> startActivity(
-                    new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
-            card.addView(button);
-            card.addView(note(
-                    "If the switch is restricted: App info → ⋮ → Allow restricted settings, then return here."));
-        } else if (!notificationPermission) {
-            card.addView(heading("Step 2 of 4 · Timer alert"));
-            card.addView(body(
-                    "This permission is used for the one alert when your 60-minute wait ends. There is no permanent protection notification."));
-            Button button = primaryButton("Allow notifications");
-            button.setOnClickListener(view -> requestPermissions(
-                    new String[]{Manifest.permission.POST_NOTIFICATIONS},
-                    REQUEST_NOTIFICATIONS));
-            card.addView(button);
-        } else if (!exactAlarms) {
-            card.addView(heading("Step 3 of 4 · Exact timer"));
-            card.addView(body(
-                    "This lets the 10-minute decision window open on time without running a background service."));
-            Button button = primaryButton("Allow alarms and reminders");
-            button.setOnClickListener(view -> startActivity(new Intent(
-                    Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                    Uri.parse("package:" + getPackageName()))));
-            card.addView(button);
-        } else if (!admin) {
-            card.addView(heading("Step 4 of 4 · Uninstall barrier"));
-            card.addView(body(
-                    "This adds a deliberate 10-minute removal path. No Doom requests no lock, wipe or password policy."));
-            Button button = primaryButton("Activate uninstall barrier");
-            button.setOnClickListener(view -> {
-                Intent intent = new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
-                        .putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent())
-                        .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION,
-                                "No Doom uses this only as an uninstall barrier. It cannot erase or lock your phone.");
-                startActivity(intent);
-            });
-            card.addView(button);
-        }
+        card.addView(heading(previouslyReviewed
+                ? "Accessibility is still off"
+                : "Accessibility · required"));
+        card.addView(body(
+                previouslyReviewed
+                        ? "Review the disclosure again, then return to Android Accessibility settings."
+                        : "Review exactly what No Doom can see and do, then choose whether to continue."));
+        Button button = primaryButton(previouslyReviewed
+                ? "Review and open Accessibility"
+                : "Review accessibility use");
+        button.setOnClickListener(view -> showAccessibilityDisclosure());
+        card.addView(button);
+        card.addView(note(
+                "If Android restricts the switch after a direct APK install: App info → ⋮ → Allow restricted settings. Play Store installs do not need that step."));
         content.addView(card);
+    }
+
+    private void showAccessibilityDisclosure() {
+        new AlertDialog.Builder(this)
+                .setTitle("Accessibility use")
+                .setMessage(
+                        "No Doom uses Android Accessibility to identify full-screen Reel screens in the official Instagram app and intercept vertical swipes that would advance to another Reel.\n\n"
+                                + "It can see Instagram's on-screen structure and foreground app changes. When another app is in front, No Doom immediately removes its gesture layer and does not inspect that app's screen.\n\n"
+                                + "All processing happens on this phone. No screen content is stored or shared, and No Doom has no Internet permission.")
+                .setNegativeButton("Not now", null)
+                .setPositiveButton("I agree · continue", (dialog, which) -> {
+                    setupPreferences.edit()
+                            .putBoolean(KEY_ACCESSIBILITY_DISCLOSURE_ACCEPTED, true)
+                            .apply();
+                    startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+                })
+                .show();
     }
 
     private void renderAbout() {
@@ -398,9 +375,14 @@ public final class MainActivity extends Activity {
         card.addView(kicker("ABOUT", color(com.chandsharma.nodoom.R.color.muted)));
         card.addView(heading("Private by construction"));
         card.addView(body(
-                "No Doom 0.5.0-alpha.6 works with the official Play Store Instagram app. It has no Internet permission, no analytics, no account and no root requirement."));
+                "No Doom " + BuildConfig.VERSION_NAME + " works with the official Play Store Instagram app. It has no Internet permission, no analytics, no account and no root requirement."));
         card.addView(note(
-                "Accessibility can see Instagram and the small set of Android system screens needed for self-protection. Nothing it sees is saved or transmitted."));
+                "Accessibility examines Instagram only. Foreground app changes are used solely to remove No Doom's gesture layer immediately. Nothing it sees is saved or transmitted."));
+        Button privacy = secondaryButton("Read privacy policy");
+        privacy.setOnClickListener(view -> startActivity(new Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("https://chandsharma.github.io/nodoom/privacy/"))));
+        card.addView(privacy);
         content.addView(card);
     }
 
@@ -444,10 +426,6 @@ public final class MainActivity extends Activity {
             }
         }
         return false;
-    }
-
-    private ComponentName adminComponent() {
-        return new ComponentName(this, NoDoomDeviceAdminReceiver.class);
     }
 
     private String instagramVersion() {

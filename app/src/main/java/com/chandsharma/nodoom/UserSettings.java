@@ -19,7 +19,7 @@ final class UserSettings {
     }
 
     boolean unlockAlertEnabled() {
-        return preferences.getBoolean(KEY_UNLOCK_ALERT, true);
+        return preferences.getBoolean(KEY_UNLOCK_ALERT, false);
     }
 
     void setUnlockAlertEnabled(boolean enabled) {

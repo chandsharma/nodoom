@@ -1,13 +1,13 @@
 # Acceptance test report
 
-Status: **0.5.0-alpha.6 passed the focused Home-isolation and one-Reel regression; the full acceptance matrix and extended-use checks remain open.**
+Status: **The 1.0.0 Play candidate passes automated checks; its unchanged one-Reel engine previously passed the focused Pixel 9 Pro regression. A final payment-compatibility and upgrade check is required on the signed 1.0.0 build.**
 
 | Field | Value |
 |---|---|
 | Device | Pixel 9 Pro (`caiman`) |
 | Android version/build | Android 17 / API 37; `google/caiman/caiman:17/CP3A.261005.005/16271449:user/release-keys` |
 | Instagram version | 454.0.0.54.77 |
-| No Doom version | 0.1 through 0.5.0-alpha.6 tested |
+| No Doom version | 0.1 through 0.5.0-alpha.6 physically tested; 1.0.0 automated candidate |
 | Test date | 16 Nov 2026 |
 
 The authoritative acceptance checklist is in `PRODUCT_REQUIREMENTS.md`. Results must be recorded as **Pass**, **Fail** or **Not run** with evidence; empty checkboxes must never be interpreted as a pass.
@@ -16,11 +16,23 @@ The authoritative acceptance checklist is in `PRODUCT_REQUIREMENTS.md`. Results 
 
 | Check | Result |
 |---|---|
-| Unit tests | **Pass — 38 tests in each of the debug and release variants, zero failures/errors/skips**, including exact navigation, inline-feed/full-screen, modal-transition, sheet-recognition and System UI isolation regressions, 16 Nov 2026 |
+| Unit tests | **Pass — 37 tests in each of the debug and release variants, zero failures/errors/skips**, including exact navigation, inline-feed/full-screen, modal-transition, sheet-recognition and System UI isolation regressions, 17 Nov 2026 |
 | Android lint | Pass, zero issues — 16 Nov 2026 |
 | Debug APK | Pass — assembled successfully from the release source |
 | Release APK signature | Pass — owner key, RSA 4096, certificate SHA-256 `5822e80c3db9b629f0cd4e8a35fd274da98892a54ee60d5d0cb8fd653f1db28e` |
-| Manifest permission audit | Pass — only notifications, boot recovery and exact alarms; no Internet permission |
+| Manifest permission audit | Pass — only optional notifications and boot recovery; no Internet, exact alarm or Device Administrator permission/component |
+
+## 1.0.0 Play candidate
+
+| Check | Result |
+|---|---|
+| Target SDK | **Pass** — Android 16 / API 36 |
+| Automated tests | **Pass** — 37 debug and 37 release tests; zero failures, errors or skips |
+| Android lint | **Pass** — zero issues |
+| Release APK | 211,328 bytes · SHA-256 `b3763d5f9156d0859dac1a661d53eded70226035f5802f34405cbe55af9b3357` |
+| Play AAB | 199,572 bytes · SHA-256 `9ee2eadace5784c24525ea7286bcf1eb0365e6dff3fca9731f1ce5e5a938fd18` |
+| Signing certificate | **Pass** — SHA-256 `5822e80c3db9b629f0cd4e8a35fd274da98892a54ee60d5d0cb8fd653f1db28e`, matching prior owner releases |
+| Final physical check | **Pending** — install/upgrade, payment switch, disclosure and unchanged Instagram regression on Pixel 9 Pro |
 
 ## Physical findings from 0.1.0-alpha.1
 

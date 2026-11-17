@@ -1,6 +1,6 @@
 # Install No Doom on a Pixel
 
-No Doom is not on Google Play. Install only an APK from this repository's Releases page.
+No Doom is being submitted to Google Play. Until its listing is approved, install only an APK from this repository's Releases page.
 
 ## Before installing
 
@@ -42,19 +42,17 @@ For a sideloaded app, Pixel may initially block the Accessibility switch:
 4. Return to **Settings → Accessibility → Downloaded apps → No Doom**.
 5. Turn on **Use No Doom** and accept Android's disclosure.
 
-Accessibility is powerful. The open-source app has no Internet permission. It receives foreground package transitions so it can remove its gate when you leave Instagram, but inspects UI structure only inside Instagram, Android System UI and the two removal-barrier system screens. Other apps' window content is not requested or traversed.
+Accessibility is powerful. Before opening Android Settings, No Doom shows a prominent disclosure and asks you to affirmatively agree. The open-source app has no Internet permission. It receives foreground package transitions so it can remove its gate when you leave Instagram, but inspects UI structure only inside Instagram and Android System UI. Other apps' window content is not requested or traversed.
 
-### Notifications
+### Optional notifications
 
-Allow notifications so the phone can announce the 10-minute unlock window. There is no permanent “running” or “protecting you” notification by default. **No Doom → Settings** controls the unlock alert, optional always-on status, optional silent countdown and optional Instagram-change warning. A separate blocked-swipe toast is also off by default and can be enabled there.
+Protection works without notification permission. In **No Doom → Settings**, you can optionally enable the one alert for the 10-minute decision window, a silent countdown status, an Instagram-version warning or a rate-limited blocked-swipe hint. Routine protection remains quiet.
 
-### Exact timer
+### Payments and uninstall
 
-Allow **Alarms & reminders**. This schedules exactly two local events—the start and end of an unlock window—and does not keep the app running or awake.
+Some banking and payment apps reject every downloaded Accessibility service, even while No Doom is suspended outside Instagram. Use **No Doom → Settings → Turn off Accessibility for payments**, then restart the phone if the payment app requests it. Android does not allow No Doom to re-enable itself; turn it on manually afterward.
 
-### Uninstall barrier
-
-Activate No Doom as a Device Administrator. No Doom requests no device-admin policies and cannot wipe, lock or change the phone password. To remove it later, open **No Doom → Settings → Remove app**, complete the 10-minute wait, then use Android's normal uninstall confirmation.
+No Doom uses Android's standard uninstall flow and never registers as Device Administrator.
 
 ## Live check
 

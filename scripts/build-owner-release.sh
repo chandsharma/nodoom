@@ -15,7 +15,7 @@ export NODOOM_KEY_ALIAS="nodoom-release"
 export NODOOM_KEY_PASSWORD="$SIGNING_PASSWORD"
 
 cd "$PROJECT_DIR"
-./gradlew --no-daemon clean test lint assembleRelease
+./gradlew --no-daemon clean test lint assembleRelease bundleRelease
 
 unset SIGNING_PASSWORD
 unset NODOOM_STORE_PASSWORD

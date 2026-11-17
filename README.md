@@ -8,11 +8,11 @@ No Doom is an open-source Android companion app that lets you watch one full-scr
 
 ### [⬇️ Download No Doom APK](https://github.com/chandsharma/nodoom/releases/latest/download/NoDoom.apk)
 
-**Current version:** `0.5.0-alpha.6` · **Requires:** Android 14 or newer
+**Current version:** `1.0.0` · **Requires:** Android 14 or newer
 
 [View release notes and checksums](https://github.com/chandsharma/nodoom/releases/latest) · [Changelog](CHANGELOG.md) · [Read the installation guide](docs/INSTALL.md)
 
-This is an owner-signed alpha release for Pixel 9 Pro feasibility testing. Complete the in-app live check after installation before relying on its protection.
+This is the owner-signed, Google Play-ready release. Complete the in-app live check after installation and after Instagram updates.
 
 - No root, bootloader unlock, patched APK, clone, or unofficial Instagram client.
 - Works alongside the official Instagram app installed from Google Play.
@@ -21,7 +21,7 @@ This is an owner-signed alpha release for Pixel 9 Pro feasibility testing. Compl
 - A 60-minute cooling-off period plus a 10-minute confirmation window makes impulsive disabling harder.
 
 > [!IMPORTANT]
-> No Doom is a real daily-use app under active development, not a tutorial project. `0.5.0-alpha.6` passed its focused Pixel 9 Pro regression for sustained Home scrolling—including full-height inline Reels—Reels-to-Home transitions, reopening Instagram, the one-Reel gate, native controls, modal scrolling and System UI isolation. It remains an alpha until the full entry-point matrix and extended daily-use checks are complete; always run the in-app live check after Instagram updates.
+> No Doom is a real daily-use app under active development, not a tutorial project. The one-Reel engine passed its focused Pixel 9 Pro regression for sustained Home scrolling—including full-height inline Reels—Reels-to-Home transitions, reopening Instagram, the one-Reel gate, native controls, modal scrolling and System UI isolation. Version 1.0 adds a Play-policy-compliant Accessibility disclosure, standard uninstall, API 36 targeting and payment compatibility; always run the in-app live check after Instagram updates.
 
 ## What it changes
 
@@ -32,7 +32,7 @@ This is an owner-signed alpha release for Pixel 9 Pro feasibility testing. Compl
 | Swipe to another Reel | Blocked |
 | Instagram Reels tab | Its first Reel can play; vertical swipes cannot advance |
 | Android notification shade and Quick Settings | Always pass through normally |
-| Other apps | Never touched |
+| Other apps | Gesture layer and Reel session are removed immediately; their window content is not inspected |
 
 No Doom uses Android Accessibility to recognise a full-screen Reel and intercept only the vertical gesture that would advance it. App-specific recognition is isolated behind [`ProtectedAppModule.java`](app/src/main/java/com/chandsharma/nodoom/ProtectedAppModule.java); Instagram's rules live in [`InstagramUiClassifier.java`](app/src/main/java/com/chandsharma/nodoom/InstagramUiClassifier.java). This keeps window safety independent and makes a future platform module possible without rewriting the core service.
 
@@ -40,11 +40,11 @@ No Doom uses Android Accessibility to recognise a full-screen Reel and intercept
 
 Instagram remains the Play Store-signed app and handles every login, video, message, like, comment, and network request. No Doom does not contact Instagram and does not perform social actions for you.
 
-The release manifest intentionally has **no `INTERNET` permission**. Foreground package transitions are observed only to remove a stale gate when you switch apps; window structure is inspected in memory solely for Instagram and the small set of Android system screens needed for safe release/removal behavior. Release builds do not store captions, messages, usernames, images, or accessibility-tree dumps. See [Privacy](docs/PRIVACY.md) and [Architecture](docs/ARCHITECTURE.md).
+The release manifest intentionally has **no `INTERNET` permission**. Foreground package transitions are observed only to remove a stale gate when you switch apps; window structure is inspected in memory solely for Instagram and System UI safety. Release builds do not store captions, messages, usernames, images, or accessibility-tree dumps. No Doom never blocks disabling or uninstalling. See the [public privacy policy](https://chandsharma.github.io/nodoom/privacy/) and [Architecture](docs/ARCHITECTURE.md).
 
 ## Install
 
-There is no Play Store listing. Owner-signed APKs are published on this repository's [GitHub Releases](https://github.com/chandsharma/nodoom/releases), together with SHA-256 checksums. Follow the [plain-language installation guide](docs/INSTALL.md). Google Play Protect may block a browser/file-manager installation of an Accessibility app in selected markets even when the APK is clean and correctly signed; never disable Play Protect to work around it.
+No Doom is being submitted to Google Play. Until the listing is approved, owner-signed APKs remain available on this repository's [GitHub Releases](https://github.com/chandsharma/nodoom/releases), together with SHA-256 checksums. Follow the [plain-language installation guide](docs/INSTALL.md). Google Play Protect may block a browser/file-manager installation of an Accessibility app in selected markets even when the APK is clean and correctly signed; never disable Play Protect to work around it.
 
 Never install an APK posted in an issue, discussion, comment, mirror, or chat. Use only this repository's Releases page and verify its checksum.
 
@@ -53,7 +53,7 @@ Never install an APK posted in an issue, discussion, comment, mirror, or chat. U
 Requirements:
 
 - JDK 17
-- Android SDK Platform 34 and Build Tools 34.0.0
+- Android SDK Platform 36 and Build Tools 36.0.0
 - Android Studio or the command-line SDK tools
 
 ```bash
@@ -69,7 +69,7 @@ The project follows five gates:
 1. **M0 feasibility:** validate every entry point and compare gesture suppression with bounce-back on the Pixel 9 Pro.
 2. **M1 Reel blocking:** pass all Reel and unaffected-screen tests.
 3. **M2 lock:** validate the 60-minute countdown and 10-minute window.
-4. **M3 self-protection and setup:** validate Settings, uninstall and reboot paths.
+4. **M3 setup and user control:** validate disclosure, payment compatibility, standard uninstall and reboot paths.
 5. **M4 hardening:** battery, memory, privacy, upgrade and one-week daily-use test.
 
 Progress and evidence are tracked in [the feasibility report](docs/FEASIBILITY.md) and [test report](docs/TEST_REPORT.md). A checkbox is not marked passed without a real-device observation.

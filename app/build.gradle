@@ -22,14 +22,14 @@ def hasReleaseSigning = releaseStoreFile
 
 android {
     namespace 'com.chandsharma.nodoom'
-    compileSdk 34
+    compileSdk 36
 
     defaultConfig {
         applicationId 'com.chandsharma.nodoom'
         minSdk 34
-        targetSdk 34
-        versionCode 6
-        versionName '0.5.0-alpha.6'
+        targetSdk 36
+        versionCode 7
+        versionName '1.0.0'
 
         testInstrumentationRunner 'android.app.Instrumentation'
     }
@@ -63,6 +63,10 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     testOptions {

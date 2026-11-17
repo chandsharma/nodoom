@@ -1,7 +1,10 @@
 package com.chandsharma.nodoom;
 
 import android.accessibilityservice.AccessibilityService;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Rect;
@@ -15,6 +18,8 @@ import android.widget.Toast;
 
 public final class NoDoomAccessibilityService extends AccessibilityService
         implements GestureGateOverlay.Callback {
+    public static final String ACTION_DISABLE_SERVICE =
+            "com.chandsharma.nodoom.action.DISABLE_ACCESSIBILITY";
     private static final String SYSTEM_UI_PACKAGE = "com.android.systemui";
     private static final long VIEWER_CONFIRMATION_MILLIS = 80L;
     private static final long INFINITE_FEED_TRANSITION_GRACE_MILLIS = 1_000L;
@@ -25,16 +30,23 @@ public final class NoDoomAccessibilityService extends AccessibilityService
     private static final long PROTECTED_EXIT_CHECK_INTERVAL_MILLIS = 750L;
     private static final long MODAL_WATCHDOG_MILLIS = 350L;
     private static final long MODAL_RETURN_GUARD_MILLIS = 1_000L;
-    private static final long GUARD_COOLDOWN_MILLIS = 900L;
     private static final long RECOGNITION_WRITE_COOLDOWN_MILLIS = 5_000L;
     private static final long BLOCK_HINT_COOLDOWN_MILLIS = 30_000L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ProtectedAppRegistry appRegistry = new ProtectedAppRegistry();
-    private final SelfProtectionGuard selfProtectionGuard = new SelfProtectionGuard();
+    private final BroadcastReceiver commandReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (!ACTION_DISABLE_SERVICE.equals(intent.getAction())) {
+                return;
+            }
+            resetProtectionSession(true);
+            disableSelf();
+        }
+    };
 
     private ProtectionStateStore stateStore;
-    private RemovalStateStore removalStateStore;
     private RecognitionStore recognitionStore;
     private UserSettings userSettings;
     private GestureGateOverlay gestureGate;
@@ -59,18 +71,24 @@ public final class NoDoomAccessibilityService extends AccessibilityService
     private long viewerCandidateSinceElapsed;
     private long lastViewerRecordElapsed;
     private long lastTabRecordElapsed;
-    private long lastGuardElapsed;
     private long lastBlockHintElapsed;
     private int viewerExitGeneration;
+    private boolean commandReceiverRegistered;
 
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
         stateStore = new ProtectionStateStore(this);
-        removalStateStore = new RemovalStateStore(this);
         recognitionStore = new RecognitionStore(this);
         userSettings = new UserSettings(this);
         gestureGate = new GestureGateOverlay(this, this);
+        if (!commandReceiverRegistered) {
+            registerReceiver(
+                    commandReceiver,
+                    new IntentFilter(ACTION_DISABLE_SERVICE),
+                    Context.RECEIVER_NOT_EXPORTED);
+            commandReceiverRegistered = true;
+        }
         stateStore.get();
         handler.post(this::inspectCurrentWindow);
     }
@@ -149,7 +167,6 @@ public final class NoDoomAccessibilityService extends AccessibilityService
             return;
         }
         resetProtectionSession(true);
-        guardSystemScreen(packageName);
     }
 
     @Override
@@ -163,7 +180,14 @@ public final class NoDoomAccessibilityService extends AccessibilityService
             recognitionStore.recordInterruption();
         }
         onInterrupt();
+        unregisterCommandReceiver();
         return super.onUnbind(intent);
+    }
+
+    @Override
+    public void onDestroy() {
+        unregisterCommandReceiver();
+        super.onDestroy();
     }
 
     @Override
@@ -362,7 +386,6 @@ public final class NoDoomAccessibilityService extends AccessibilityService
             return;
         }
         resetProtectionSession(true);
-        guardSystemScreen(packageName);
     }
 
     private String activeWindowPackage() {
@@ -774,30 +797,12 @@ public final class NoDoomAccessibilityService extends AccessibilityService
         recognitionStore.recordReelsTab(installedVersion(module.packageName()));
     }
 
-    private void guardSystemScreen(String packageName) {
-        // The service receives foreground-package transitions globally so it can remove a stale
-        // overlay immediately. Never request or traverse another app's tree here.
-        if (!selfProtectionGuard.handlesPackage(packageName)) {
+    private void unregisterCommandReceiver() {
+        if (!commandReceiverRegistered) {
             return;
         }
-        long now = SystemClock.elapsedRealtime();
-        if (now - lastGuardElapsed < GUARD_COOLDOWN_MILLIS) {
-            return;
-        }
-        AccessibilityNodeInfo root = getRootInActiveWindow();
-        try {
-            boolean removalAllowed = removalStateStore != null
-                    && removalStateStore.removalAllowed();
-            if (!selfProtectionGuard.shouldClose(packageName, root, removalAllowed)) {
-                return;
-            }
-        } finally {
-            if (root != null) {
-                root.recycle();
-            }
-        }
-        lastGuardElapsed = now;
-        performGlobalAction(GLOBAL_ACTION_BACK);
+        unregisterReceiver(commandReceiver);
+        commandReceiverRegistered = false;
     }
 
     private String installedVersion(String packageName) {

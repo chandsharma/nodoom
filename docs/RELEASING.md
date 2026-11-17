@@ -27,7 +27,7 @@ keyPassword=OWNER_SECRET
 
 ```bash
 ./scripts/build-owner-release.sh
-$ANDROID_HOME/build-tools/34.0.0/apksigner verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
+$ANDROID_HOME/build-tools/36.0.0/apksigner verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
 shasum -a 256 app/build/outputs/apk/release/app-release.apk
 ```
 
@@ -39,5 +39,5 @@ Before publishing:
 - Install the APK over the previous release without clearing state.
 - Verify the signing-certificate SHA-256 matches the previous release.
 
-Attach the APK and `SHA256SUMS.txt` to a GitHub Release. Include one-line changes, test status and known limitations. Alpha artifacts must be clearly marked pre-release.
+Attach the APK and `SHA256SUMS.txt` to a GitHub Release. For Google Play, upload the signed `app/build/outputs/bundle/release/app-release.aab`; the same owner key is the upload key while Play App Signing protects store distribution. Include changes, test status and known limitations in every release.
 

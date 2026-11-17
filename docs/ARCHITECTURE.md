@@ -4,24 +4,22 @@
 
 No Doom is a separate Android application. It never shares Instagram's UID, files, credentials or signing certificate. The official `com.instagram.android` package continues to perform all account and network activity.
 
-The manifest contains no Internet permission. Android must deliver foreground package transitions globally so No Doom can remove its transparent gate immediately when another app appears. The service filters before reading a window: it inspects UI structure only for Instagram, Android System UI, Android Settings and Permission Controller. For every other package it observes the package name, clears any gate and returns without requesting or traversing that app's accessibility tree.
+The manifest contains no Internet permission. Android must deliver foreground package transitions globally so No Doom can remove its transparent gate immediately when another app appears. The service filters before reading a window: it inspects UI structure only for Instagram and Android System UI. For every other package it observes the package name, clears every Reel-session state and gate, and returns without requesting or traversing that app's accessibility tree.
 
 ## Components
 
 | Component | Responsibility |
 |---|---|
-| `MainActivity` | Guided four-step setup, separate live check and the four protection states |
-| `SettingsActivity` | Notification controls and the deliberate removal flow |
+| `MainActivity` | Prominent Accessibility disclosure, guided setup, separate live check and four protection states |
+| `SettingsActivity` | Optional notification/feedback controls, payment compatibility and standard uninstall |
 | `ProtectionStateStore` | Fail-safe ON/OFF/countdown/window state using monotonic elapsed time |
-| `RemovalStateStore` | Ten-minute wait and ten-minute removal window using monotonic time |
-| `AlarmScheduler` | Two exact elapsed-time transitions; no polling or background ticking |
+| `AlarmScheduler` | Best-effort inexact wake-ups for optional alerts; stored deadlines remain authoritative |
 | `NoDoomAccessibilityService` | Generic window-safety and gesture-session coordinator; acts only while protected |
 | `ProtectedAppModule` / `ProtectedAppRegistry` | Stable extension boundary for app-specific recognition, modal controls and list scrolling |
 | `InstagramProtectionModule` | Maps Instagram recognition and known modal list IDs into generic protected surfaces |
 | `InstagramUiClassifier` | Centralised, version-maintainable screen recognition |
 | `GestureGateOverlay` | Transparent Accessibility overlay active only in a recognised Reel viewer |
 | `WindowSafetyPolicy` | Fail-closed foreground-package and System UI rule |
-| `SelfProtectionGuard` | Narrowly guards only uninstall/device-admin removal screens |
 | `RecognitionStore` | Stores timestamps and Instagram version only—never screen content |
 
 ## Reel recognition
@@ -53,13 +51,11 @@ Because a long press is replayed after classification, its effect begins after t
 
 ## Lock timing
 
-Countdown deadlines use `SystemClock.elapsedRealtime()`, which includes sleep and is unaffected by wall-clock or time-zone changes. Exact elapsed-real-time alarms open and close the window without a polling service. Reboot changes Android's boot counter; protected transitional states reset to ON, while OFF remains OFF.
+Countdown deadlines use `SystemClock.elapsedRealtime()`, which includes sleep and is unaffected by wall-clock or time-zone changes. Inexact elapsed-real-time alarms provide best-effort optional notifications; every state read independently applies the authoritative deadline, so batching can never shorten the cooling-off period. Reboot changes Android's boot counter; protected transitional states reset to ON, while OFF remains OFF.
 
 Missing, corrupt or contradictory state always resolves to ON.
 
-## Self-protection boundary
+## Disable and uninstall boundary
 
-Device Administrator adds an uninstall barrier but has no lock, wipe or password policy. Settings provides a visible 10-minute removal wait followed by a 10-minute window; when ready, No Doom deactivates only its own administrator and opens Android's normal uninstall confirmation. The Accessibility guard is intentionally narrow and silent so ordinary App info, launcher and Settings screens are not closed by broad text matching.
-
-Android still allows bypass with a computer, safe mode or factory reset. No Doom is an impulse barrier, not device-owner management software.
+Android does not let an app silently re-enable its own Accessibility service. Settings therefore offers an explicit payment-compatibility action that calls `disableSelf()` after confirmation and clearly explains that manual re-enabling is required. No Doom never registers as Device Administrator, never intercepts Android Settings, and uses the standard Android uninstall flow.
 

@@ -1,0 +1,30 @@
+Keep the social parts you value. Remove the infinite Reel loop.
+
+No Doom works beside the official Instagram app and keeps each full-screen Reel viewer on one Reel. You can open a Reel from Home, Explore, a profile, a story or a message, watch it normally, use its controls, read and scroll comments, and share it. A vertical swipe cannot advance to the next Reel.
+
+WHAT STAYS NORMAL
+• Instagram Home, Explore, profiles, stories and messages
+• Individual Reels you intentionally open
+• Likes, comments, sharing, saving and playback controls
+• Android notifications, Quick Settings and every other app
+
+WHAT CHANGES
+• Full-screen next-Reel swipes are blocked quietly
+• The Reels tab can play its current Reel but cannot become an endless feed
+• Turning protection off requires a 60-minute cooling-off period followed by a 10-minute decision window
+
+PRIVATE BY CONSTRUCTION
+• No Instagram login
+• No No Doom account
+• No Internet permission
+• No ads, analytics or telemetry
+• No root, modified Instagram APK or bootloader changes
+• Open-source under Apache-2.0
+
+ACCESSIBILITY DISCLOSURE
+No Doom uses Android Accessibility to identify full-screen Reel screens in the official Instagram app and intercept vertical gestures that would advance to another Reel. It can process Instagram’s live on-screen structure and foreground app changes. When another app is in front, No Doom immediately removes its gesture layer and does not inspect that app’s screen. Accessibility content is processed on the device and is never stored or shared. No Doom does not use Accessibility to perform social actions, change settings, prevent disabling, or prevent uninstalling.
+
+PAYMENT-APP COMPATIBILITY
+Some banking and payment apps block transactions whenever any downloaded Accessibility service is enabled. No Doom includes a clear control that fully turns off its service for payments. Android requires you to re-enable it manually afterward.
+
+No Doom is an independent project and is not affiliated with, endorsed by or sponsored by Instagram or Meta. Instagram is a trademark of Meta Platforms, Inc.

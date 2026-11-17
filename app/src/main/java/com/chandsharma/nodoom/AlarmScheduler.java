@@ -29,17 +29,13 @@ final class AlarmScheduler {
         long triggerAt = Math.max(
                 SystemClock.elapsedRealtime() + 1_000L,
                 snapshot.deadlineElapsedRealtime);
-        if (alarmManager.canScheduleExactAlarms()) {
-            alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                    triggerAt,
-                    pendingIntent);
-        } else {
-            alarmManager.setAndAllowWhileIdle(
-                    AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                    triggerAt,
-                    pendingIntent);
-        }
+        // The deadline is stored separately and is authoritative whenever the app wakes.
+        // An inexact alarm avoids privileged "Alarms & reminders" access; Android may batch the
+        // optional notification, but it can never shorten the cooling-off period.
+        alarmManager.setAndAllowWhileIdle(
+                AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                triggerAt,
+                pendingIntent);
     }
 
     void cancel() {

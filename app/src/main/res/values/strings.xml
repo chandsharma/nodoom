@@ -2,7 +2,6 @@
 <resources>
     <string name="app_name">No Doom</string>
     <string name="settings">Settings</string>
-    <string name="accessibility_description">Keeps each full-screen Reel—including the Reels tab—on one video while ordinary Instagram and Android notification-shade gestures remain normal. Screen structure is processed only on this phone and is never stored or sent.</string>
-    <string name="device_admin_description">Adds a 10-minute path before uninstalling No Doom. It requests no lock, wipe or password policy.</string>
+    <string name="accessibility_description">Identifies full-screen Reels in the official Instagram app and blocks only the vertical gesture that advances to the next Reel. Instagram screen structure and foreground app changes are processed on this phone and are never stored or sent.</string>
 </resources>
 
